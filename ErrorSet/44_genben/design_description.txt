@@ -1,0 +1,64 @@
+Module overview:
+ ### 1. Module Name
+
+The name of the RTL module is `altaccumulate`.
+
+### 2. Module Functions
+
+The `altaccumulate` module is designed to perform accumulation (addition or subtraction) operations on a series of input data values. It supports both signed and unsigned data types, configurable input and output widths, and optional extra latency for the accumulation process. The module can be used in various digital signal processing (DSP) applications, arithmetic operations, or any system requiring dynamic accumulation of data values. It also features the ability to selectively enable operations via a clock enable signal and to reset the accumulator to a known state asynchronously.
+
+### 3. Input and Output Port Descriptions
+
+- **Inputs:**
+  - `cin` (input): Carry-in bit for the first addition/subtraction operation. It can also be used to reset the accumulator when sload is active.
+  - `data` (input [width_in-1:0]): The data input to be accumulated. Its width is configurable through the `width_in` parameter.
+  - `add_sub` (input): Control signal to select between addition (when high) and subtraction (when low).
+  - `clock` (input): Clock signal for synchronizing the accumulation operations.
+  - `sload` (input): Synchronous load signal. When high, it resets the accumulator based on the `cin` input.
+  - `clken` (input): Clock enable signal. The accumulator operates only when this signal is high.
+  - `sign_data` (input): Sign control signal. When high, it treats the input data as signed; otherwise, it treats the data as unsigned.
+  - `aclr` (input): Asynchronous clear signal. When high, it resets the accumulator regardless of the clock signal.
+
+- **Outputs:**
+  - `result` (output [width_out-1:0]): The accumulated result. Its width is configurable through the `width_out` parameter.
+  - `cout` (output): Carry-out bit from the last addition/subtraction operation. It can indicate an overflow in unsigned operations.
+  - `overflow` (output): Overflow indicator for signed operations. It signals when the result exceeds the representable range for signed numbers.
+
+### 4. Internal Working Principle
+
+The `altaccumulate` module operates based on the principle of sequential accumulation, where input data values are either added to or subtracted from an accumulator based on the `add_sub` control signal. The module supports both signed and unsigned operations, determined by the `sign_data` input.
+
+Upon each clock cycle (when `clken` is high), the module reads the input data, performs the specified operation (addition or subtraction), and updates the accumulator (`result`) with the new value. The `sload` signal allows for synchronous resetting of the accumulator, while the `aclr` signal provides an asynchronous reset mechanism, ensuring the accumulator can be quickly set to a known state when required.
+
+The module also incorporates optional extra latency (`extra_latency` parameter) to accommodate designs requiring a specific timing behavior. This is achieved by delaying the update of the `result` output through a series of pipeline registers, effectively introducing a delay between the input operation and the visible output result.
+
+Internally, the module extends the input data to match the output width (`width_out`) to ensure correct arithmetic operations, especially for signed data. The carry-out (`cout`) and overflow (`overflow`) signals provide additional information about the result of the last operation, indicating whether an overflow occurred in the case of signed operations or if there was a carry-out in unsigned operations.
+
+### 5. Implementation Logic Explanation
+
+The `altaccumulate` module is designed to perform accumulation (addition or subtraction) operations on input data, with the ability to handle both signed and unsigned data. It operates under the control of a clock signal and can be dynamically configured to either add or subtract input data, load a specific value, or clear its internal state. The module supports parameterized input and output widths, allowing for flexibility in handling different data sizes. It also includes features for overflow detection and conditional operation based on external control signals.
+
+#### Combinational Logic:
+
+- **Data Extension and Sign Handling:** The module extends the input data to match the accumulator's width, preserving the sign for signed operations. This is achieved through the `zeropad` register, which is filled with either zeros or ones based on the sign of the input data and the operation mode (signed or unsigned).
+- **Arithmetic Operations:** Depending on the `add_sub` control signal and the `sload` signal, the module performs addition, subtraction, or loads a specific value into the accumulator. The arithmetic operation is carried out on the extended input data and the current value of the accumulator, with the carry-in (`cin`) or borrow being considered.
+- **Overflow and Carry-out Detection:** The module includes logic to detect overflow conditions and generate a carry-out signal. The detection mechanism varies depending on whether the operation is signed or unsigned.
+
+#### Sequential Logic:
+
+- **Accumulator Update:** The accumulator's value is updated on the rising edge of the clock signal, provided the `aclr` signal is not asserted. If `aclr` is asserted, the accumulator and related signals are reset. The module supports additional latency through the `result_pipe` register array, which introduces a delay between the arithmetic operation and the update of the accumulator's output.
+- **Conditional Operation:** The module's operation can be paused by deasserting the `clken` signal, effectively freezing the accumulator's state until `clken` is asserted again.
+
+### 6. Internally Defined Signal Descriptions
+
+- **`temp_sum` and `temp_sum_wire`:** These signals represent the intermediate sum or difference (depending on the operation mode) before being assigned to the accumulator. `temp_sum` is a register, while `temp_sum_wire` is its wire counterpart for assignments.
+- **`overflow`, `overflow_int`, `overflow_int_wire`:** These signals are used to indicate an overflow condition. `overflow` is the output signal, `overflow_int` is the internal register holding the overflow status, and `overflow_int_wire` is used for assignments.
+- **`cout`, `cout_int`, `cout_int_wire`, `cout_delayed`, `cout_delayed_wire`:** These signals are related to the carry-out or borrow-out condition. `cout` is the output signal, `cout_int` is the internal register, `cout_int_wire` is its wire counterpart, and `cout_delayed` (along with `cout_delayed_wire`) is used when extra latency is introduced.
+- **`result`, `result_int`, `result_int_wire`:** These signals hold the accumulator's value. `result` is the output, `result_int` is the internal register, and `result_int_wire` is used for assignments.
+- **`result_pipe`:** This register array introduces additional latency between the arithmetic operation and the update of the accumulator's output.
+- **`zeropad`:** This register is used to extend the input data to the accumulator's width, preserving the sign for signed operations.
+- **`borrow`, `cin_int`:** These signals are used in subtraction operations to handle the borrow and carry-in conditions.
+- **`fb_int`, `data_int`:** `fb_int` holds the feedback value from the accumulator for the next operation, and `data_int` is the extended input data used in the arithmetic operation.
+- **`aclr_int`, `sign_data_int`, `sload_int`, `clken_int`, `add_sub_int`:** These tri-state signals are internal representations of the module's input control signals, allowing for conditional logic based on their states.
+
+This module is designed with flexibility and configurability in mind, supporting a wide range of arithmetic operations and data handling scenarios. Its careful handling of signed and unsigned data, overflow detection, and conditional operation make it a versatile component in digital signal processing and arithmetic-intensive applications.

@@ -1,0 +1,86 @@
+Module overview:
+ ### 1. Module Name
+
+The name of this RTL module is `generic_fifo_ctrl`.
+
+### 2. Module Functions
+
+The `generic_fifo_ctrl` module is designed to control a First-In-First-Out (FIFO) memory buffer. Its primary functions include managing read and write operations to the FIFO, handling synchronization across different clock domains (if enabled), and providing status signals such as full, almost full, empty, and almost empty conditions. This module is versatile and can be configured for various FIFO depths and operational modes, making it suitable for a wide range of applications in digital systems where data buffering and synchronization between producer and consumer entities are required.
+
+### 3. Input and Output Port Descriptions
+
+- **Inputs:**
+  - `wclk`: Write clock input. Clock signal for write operations.
+  - `wrst_n`: Write reset (active low). Asynchronous reset signal for the write domain.
+  - `wen`: Write enable. Signal to enable write operations to the FIFO.
+  - `rclk`: Read clock input. Clock signal for read operations.
+  - `rrst_n`: Read reset (active low). Asynchronous reset signal for the read domain.
+  - `ren`: Read enable. Signal to enable read operations from the FIFO.
+
+- **Outputs:**
+  - `wfull`: Write full. Indicates that the FIFO is full and cannot accept more data.
+  - `walmost_full`: Write almost full. Indicates that the FIFO is close to being full.
+  - `mem_wen`: Memory write enable. Controls the write enable signal of the underlying memory.
+  - `mem_waddr`: Memory write address. Specifies the address in memory where data should be written.
+  - `rempty`: Read empty. Indicates that the FIFO is empty and no data is available for reading.
+  - `ralmost_empty`: Read almost empty. Indicates that the FIFO has few data items left.
+  - `mem_ren`: Memory read enable. Controls the read enable signal of the underlying memory.
+  - `mem_raddr`: Memory read address. Specifies the address in memory from which data should be read.
+
+### 4. Internal Working Principle
+
+The `generic_fifo_ctrl` module operates based on several key principles:
+
+- **Pointer Management:** It uses pointers (write and read pointers) to manage the locations where data is written to and read from in the FIFO. These pointers are incremented upon successful write or read operations and are maintained in both binary and Gray code to facilitate safe clock domain crossing when enabled.
+
+- **Clock Domain Crossing (CDC):** If configured (`CLOCK_CROSSING` parameter), the module safely transfers the write and read pointers between the write and read clock domains using Gray code representation and a double-flop synchronization scheme to minimize metastability risks.
+
+- **Full and Empty Detection:** The module calculates the FIFO's full and almost full status by comparing the write pointer's position relative to the read pointer's position, taking into account the FIFO's depth. Similarly, it calculates the empty and almost empty status. This is crucial for preventing data corruption by avoiding overwrites and under-reads.
+
+- **Configurability:** The module is highly configurable through parameters such as FIFO depth, almost full and almost empty thresholds, and the option to enable early read operations or clock domain crossing features. This allows the module to be tailored to specific application requirements.
+
+- **Early Read and Write Operations:** Depending on the configuration (`EARLY_READ` parameter), the module can support early read operations, where the read address is updated in anticipation of a read enable signal, potentially improving the read operation's timing characteristics.
+
+### 5. Implementation Logic Explanation
+
+The RTL module presented is a generic FIFO (First-In-First-Out) controller designed to manage data flow between producer and consumer processes, potentially across different clock domains. This module is highly configurable, supporting parameterized FIFO depth, address width, and features such as early read and clock crossing handling. The core functionality revolves around managing read and write pointers, generating status signals (e.g., full, empty, almost full, almost empty), and handling the synchronization of these pointers across clock domains if required.
+
+#### Key Functional Blocks:
+
+- **Pointer Management:** The FIFO uses two main pointers, `wr_ptr` for write operations and `rd_ptr` for read operations, both of which can extend one bit beyond the address width to handle the wrap-around condition without ambiguity. These pointers are incremented upon successful write or read operations, respectively.
+
+- **Status Signal Generation:** The module generates status signals like `wfull`, `walmost_full`, `rempty`, and `ralmost_empty` based on the levels of the FIFO, which are calculated by comparing the write and read pointers.
+
+- **Clock Domain Crossing (CDC):** If `CLOCK_CROSSING` is enabled, the module employs Gray coding to safely pass the write and read pointers between different clock domains (from write to read domain and vice versa), using a two-stage synchronization scheme to mitigate metastability risks.
+
+- **Early Read Logic:** When `EARLY_READ` is enabled, the module allows the read address to be updated in anticipation of a read enable signal, potentially reducing read latency.
+
+#### Sequential and Combinational Logic:
+
+- **Sequential Logic:** The module updates the write and read pointers (`wr_ptr` and `rd_ptr`) on the rising edge of their respective clocks, considering reset conditions and enabling signals. The Gray-coded pointers and their synchronized versions across clock domains are also updated sequentially, adhering to the clock edges and reset signals.
+
+- **Combinational Logic:** The calculation of FIFO status signals (full, almost full, etc.), the conversion between binary and Gray code, and the level calculations are performed using combinational logic. The next read pointer (`next_rd_ptr`) is determined based on the current read pointer and the read enable signal in a combinational manner.
+
+### 6. Internally Defined Signal Descriptions
+
+- **wr_ptr, rd_ptr:** Binary-coded write and read pointers, respectively, indicating the current positions for write and read operations within the FIFO.
+
+- **next_rd_ptr:** The next value of the read pointer, updated in a combinational block based on the read enable signal and the current read pointer.
+
+- **wr_gray, rd_gray:** Gray-coded versions of the write and read pointers, respectively. Gray coding is used to ensure that only one bit changes at a time during pointer updates, reducing the risk of synchronization errors when crossing clock domains.
+
+- **wr_gray_reg, rd_gray_reg:** Registers holding the Gray-coded write and read pointers, used as the first stage in the two-stage synchronization process for clock domain crossing.
+
+- **wr_gray_meta, rd_gray_meta:** Intermediate registers in the two-stage synchronization process, holding the metastable-safe values of the Gray-coded pointers after the first synchronization stage.
+
+- **wr_gray_sync, rd_gray_sync:** Synchronized Gray-coded pointers, available in the opposite clock domain after the second stage of synchronization, ready for conversion back to binary and comparison.
+
+- **wck_rd_ptr, rck_wr_ptr:** Binary-coded pointers converted from the synchronized Gray-coded pointers in the opposite clock domains, used for level calculation and status signal generation.
+
+- **wck_level, rck_level:** Calculated levels of the FIFO from the perspective of the write clock domain and read clock domain, respectively, used for generating status signals.
+
+- **mem_wen, mem_ren:** Memory write and read enable signals, controlled based on the FIFO status (e.g., not full for write enable, not empty for read enable) and the operational mode (e.g., early read).
+
+- **mem_waddr, mem_raddr:** Memory write and read addresses, directly derived from the write and read pointers, indicating where the next write or read operation should occur.
+
+This module's design encapsulates a robust FIFO control mechanism, adept at handling various operational requirements, including clock domain crossing and configurable thresholds for almost full and almost empty conditions, making it a versatile component in digital system design.

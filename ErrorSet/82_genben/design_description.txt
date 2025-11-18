@@ -1,0 +1,66 @@
+Module overview:
+ ### 1. Module Name
+
+The name of the RTL module is `clock_switch8_basic`.
+
+### 2. Module Functions
+
+The `clock_switch8_basic` module is designed to select one of eight input clocks based on a 3-bit select signal and an enable signal. It outputs a single clock signal that is derived from the selected input clock. This module is crucial in systems requiring dynamic clock switching, such as power-saving modes, performance scaling, or handling multiple clock domains. The ability to switch between different clock sources on-the-fly allows for greater flexibility and efficiency in managing system resources and performance.
+
+### 3. Input and Output Port Descriptions
+
+- **Input Ports:**
+  - `rst0_i` to `rst7_i`: These are reset input signals corresponding to each of the eight clock inputs. They are used to reset the synchronization logic associated with each clock input. Data type: `input`.
+  - `clk0_i` to `clk7_i`: These are the eight clock input signals from which one will be selected as the output clock. Data type: `input`.
+  - `enable`: This signal enables the clock selection functionality. When not enabled, the module will not select any of the input clocks to output. Data type: `input`.
+  - `select`: A 3-bit input signal used to select one of the eight input clocks. The selection is based on the binary value of this signal (ranging from 0 to 7). Data type: `input [2:0]`.
+
+- **Output Ports:**
+  - `clk_o`: The output clock signal. This is the clock signal selected from one of the eight inputs based on the `select` signal and the `enable` condition. Data type: `output`.
+
+### 4. Internal Working Principle
+
+The `clock_switch8_basic` module operates based on a combination of decoding the `select` signal, enabling logic, and synchronization mechanisms for each clock input. Here's a breakdown of its internal workings:
+
+- **Decoding and Selection Logic:**
+  - The module decodes the 3-bit `select` signal into an 8-bit decode signal, where only one bit is set high based on the `select` value, provided the `enable` signal is high. This effectively chooses which clock input is currently selected.
+  
+- **Synchronization Logic:**
+  - For each clock input (`clk0_i` to `clk7_i`), there is a corresponding 2-bit synchronization register (`ssync0` to `ssync7`). These registers are used to synchronize the selection process to the respective clock domains, mitigating the risk of metastability when switching clocks.
+  - The synchronization logic ensures that the selected clock is allowed to pass through only when it is not being actively switched, based on the conditions set by the `decode` signal and the states of other synchronization registers.
+  
+- **Gate Clock Logic:**
+  - The module generates gated clock signals (`gclk0` to `gclk7`) for each input clock. These signals are conditioned by the synchronization registers, allowing the selected clock to pass through while blocking others.
+  
+- **Output Clock Generation:**
+  - The final output clock (`clk_o`) is the logical AND of all gated clock signals. In practice, only the selected clock will be active, and all others will be blocked, resulting in the selected clock being output.
+
+### 5. Implementation Logic Explanation
+
+The RTL module `clock_switch8_basic` is designed to select one of eight input clocks (`clk0_i` to `clk7_i`) based on a 3-bit select signal (`select`) and output the selected clock through `clk_o`. The module also incorporates enable functionality and reset signals for each clock input. The core logic of this module is built upon combinational and sequential logic constructs to achieve its functionality.
+
+#### Combinational Logic:
+
+- **Decode Logic:** The 3-bit `select` signal and the `enable` signal are used in a combinational logic block to generate an 8-bit `decode` signal. Each bit of the `decode` signal corresponds to one of the eight clock inputs. If `enable` is high and the `select` value matches the clock input index, the respective bit in the `decode` signal is set high. This logic effectively decodes the `select` signal into an 8-bit enable signal for each clock input.
+
+#### Sequential Logic:
+
+- **Synchronization and Selection:** For each clock input (`clk0_i` to `clk7_i`), there is a corresponding 2-bit shift register (`ssync0` to `ssync7`). These shift registers are used to synchronize the selection process to the respective clock domains and to prevent glitches in the output clock signal. On the positive edge of each clock input, if the reset signal for that clock (`rstX_i`) is high, the shift register is reset to `0`. Otherwise, the shift register captures the enable condition for that clock (derived from the `decode` signal) while ensuring that no other clock is currently selected (checked by ensuring all other shift registers' most significant bits are low). This mechanism ensures that only one clock can be selected at any time, and the selection is stable and synchronized to the respective clock domain.
+
+#### Output Clock Generation:
+
+- **Gate Clocks:** For each clock input, a gated clock signal (`gclkX`) is generated. This signal is high when either the corresponding shift register's most significant bit is low (indicating the clock is not selected) or when the actual clock signal is high. This design ensures that the output clock signal (`clk_o`) is high only when all conditions are met for the selected clock to be active.
+
+- **Output Clock (`clk_o`):** The output clock signal is the logical AND of all gated clock signals. Since only one clock can be selected and active at any time (as ensured by the synchronization and selection logic), `clk_o` effectively outputs the selected clock signal.
+
+### 6. Internally Defined Signal Descriptions
+
+- **`ssync0` to `ssync7`:** These 2-bit shift registers are used for synchronization and selection logic for each of the eight clock inputs. They ensure that the selection of a clock is stable and synchronized to the respective clock domain.
+
+- **`decode`:** An 8-bit signal generated from the `select` and `enable` inputs. Each bit corresponds to one of the eight clock inputs, indicating whether that clock is enabled based on the `select` value and the `enable` signal.
+
+- **`gclk0` to `gclk7`:** Gated clock signals for each of the eight clock inputs. These signals are high when the corresponding clock is not selected (allowing the output clock to be high) or when the actual clock signal is high.
+
+- **`clk_o`:** The output clock signal of the module. It is the logical AND of all gated clock signals (`gclk0` to `gclk7`), effectively outputting the selected and enabled clock signal.
+
+This module employs a combination of combinational and sequential logic to implement a clock selection mechanism, ensuring stable and glitch-free switching between multiple clock sources. The use of synchronization shift registers for each clock domain is a key design choice to ensure the reliability of the clock switching process.

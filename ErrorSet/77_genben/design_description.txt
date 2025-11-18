@@ -1,0 +1,82 @@
+Module overview:
+ ### 1. Module Name
+
+The name of this RTL module is `vga_colproc`.
+
+### 2. Module Functions
+
+The `vga_colproc` module is designed to process video data for VGA (Video Graphics Array) output, specifically focusing on color processing. Its primary functions include:
+
+- **Data Buffering**: It buffers incoming video data to manage the flow between data production and consumption rates.
+- **Color Depth Handling**: It supports multiple color depths (8bpp, 16bpp, 24bpp, 32bpp) and can process both grayscale (black and white) and colored images.
+- **PseudoColor Processing**: For 8bpp color depth, it can optionally use a Color Look-Up Table (CLUT) to map 8-bit values to 24-bit RGB colors, enabling pseudo-coloring.
+- **RGB Output Generation**: It generates RGB (Red, Green, Blue) values for each pixel to be displayed, based on the input data and the selected color processing mode.
+
+This module plays a critical role in the video output pipeline, particularly in systems requiring VGA output with flexible color processing capabilities.
+
+### 3. Input and Output Port Descriptions
+
+#### Inputs:
+
+- `clk` (input): The system clock signal.
+- `srst` (input): Synchronous reset signal.
+- `vdat_buffer_di` ([31:0] input): 32-bit input video data buffer.
+- `ColorDepth` ([1:0] input): Selects the color depth (00: 8bpp, 01: 16bpp, 10: 24bpp, 11: 32bpp).
+- `PseudoColor` (input): Enables pseudo-color mode for 8bpp color depth.
+- `vdat_buffer_empty` (input): Indicates if the video data buffer is empty.
+- `rgb_fifo_full` (input): Indicates if the RGB FIFO is full.
+- `clut_ack` (input): Acknowledgment signal from the Color Look-Up Table (CLUT).
+- `clut_q` ([23:0] input): 24-bit output from the CLUT.
+
+#### Outputs:
+
+- `vdat_buffer_rreq` (output): Read request signal for the video data buffer.
+- `rgb_fifo_wreq` (output): Write request signal for the RGB FIFO.
+- `r`, `g`, `b` ([7:0] output each): 8-bit values for the red, green, and blue color channels.
+- `clut_req` (output): Request signal for the CLUT.
+- `clut_offs` ([7:0] output): Offset address for the CLUT.
+
+### 4. Internal Working Principle
+
+The `vga_colproc` module operates based on a finite state machine (FSM) with states corresponding to different phases of video data processing, including idle, buffer filling, and various color processing modes depending on the color depth and whether pseudo-coloring is enabled.
+
+- **Data Buffering**: Upon receiving video data, it is temporarily stored in an internal buffer (`DataBuffer`) to ensure a steady flow of data for processing.
+- **State Machine**: The module transitions through states based on the current state, input conditions (such as buffer fullness and color depth), and external acknowledgments (e.g., from the CLUT or RGB FIFO). This FSM controls the processing flow and timing of data read and write operations.
+- **Color Processing**: Depending on the color depth and mode (grayscale or pseudo-color), the module extracts and processes the relevant bits from the buffered data to generate the appropriate RGB values. For 8bpp pseudo-color mode, it requests color data from a CLUT using the buffered data as an index.
+- **RGB Output**: The processed RGB values are then outputted for each pixel, ready to be consumed by the next stage in the video output pipeline, typically an RGB FIFO buffer before being sent to the VGA display.
+
+### 5. Implementation Logic Explanation
+
+The RTL module presented is designed to process video data for VGA (Video Graphics Array) output, handling different color depths and modes, including pseudo-color and direct color modes. The module interfaces with a video data buffer (for input video data), a color lookup table (CLUT) for pseudo-color processing, and an RGB FIFO for outputting processed video data. The module operates under a clock signal (`clk`) and supports synchronous reset (`srst`). The core functionality is encapsulated within a finite state machine (FSM) that transitions through various states based on the color depth, pseudo-color enablement, and the status of the video data buffer and RGB FIFO.
+
+#### Finite State Machine (FSM)
+
+The FSM transitions through states including idle, fill_buf, bw_8bpp, col_8bpp, col_16bpp_a, col_16bpp_b, col_24bpp, and col_32bpp, each tailored to handle specific color depths and modes:
+
+- **idle**: The initial state, waiting for the video data buffer to be non-empty and the RGB FIFO not full to start processing.
+- **fill_buf**: Loads video data from the input buffer into an internal data buffer for processing.
+- **bw_8bpp**: Processes 8-bit black and white video data.
+- **col_8bpp**: Processes 8-bit pseudo-color video data.
+- **col_16bpp_a/b**: Processes 16-bit direct color video data in two steps due to the bit width.
+- **col_24bpp**: Processes 24-bit direct color video data.
+- **col_32bpp**: Processes 32-bit direct color video data, ignoring the highest 8 bits.
+
+#### Color Processing
+
+The module supports different color depths (8, 16, 24, and 32 bits per pixel) and can operate in either direct color mode (where pixel values directly represent color values) or pseudo-color mode (where pixel values are used as indices to a color lookup table). In pseudo-color mode, the module requests color data from the CLUT based on the pixel value (acting as an index).
+
+#### Data Flow
+
+The module reads video data from the input buffer (`vdat_buffer_di`) when it's not empty and the RGB FIFO is not full. Based on the color depth and mode, it processes the data accordingly, potentially requesting color data from the CLUT for pseudo-color mode. Processed RGB values are then pushed to the RGB FIFO for output. The module manages read requests to the video data buffer and write requests to the RGB FIFO, ensuring data is only transferred when appropriate.
+
+### 6. Internally Defined Signal Descriptions
+
+- **DataBuffer**: A 32-bit register that temporarily holds the current video data being processed. It is loaded with data from the input buffer in the fill_buf state.
+- **Ra, Ga, Ba**: 8-bit registers used to temporarily store red, green, and blue components of a pixel, especially useful in multi-cycle processing of video data (e.g., in 24bpp mode).
+- **colcnt**: A 2-bit counter used to track the processing of individual color components or pixels within the current data word, especially in modes where multiple pixels or color components are packed into a single 32-bit word.
+- **RGBbuf_wreq**: A signal indicating a request to write processed RGB data into the RGB FIFO.
+- **c_state, nxt_state**: Registers representing the current and next states of the FSM, respectively.
+- **iclut_req, ivdat_buf_rreq**: Intermediate signals used to generate the `clut_req` and `vdat_buffer_rreq` output signals, indicating requests to the CLUT and the video data buffer, respectively.
+- **iR, iG, iB, iRa, iGa, iBa**: Intermediate signals used for storing the red, green, and blue components of the current and next pixels to be processed. These are used to prepare the RGB values for output or further processing.
+
+This module's design showcases a structured approach to handling video data processing for VGA output, with a focus on flexibility across different color depths and modes. The use of an FSM to manage state transitions, coupled with intermediate registers and signals for data handling, enables efficient and modular video data processing.

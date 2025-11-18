@@ -1,0 +1,84 @@
+Module overview:
+ ### 1. Module Name
+
+The name of this RTL module is `writeqspi`.
+
+### 2. Module Functions
+
+The `writeqspi` module is designed to interface with a Quad SPI (Serial Peripheral Interface) flash memory. Its primary functions include handling write and erase requests, managing data transmission in either standard or quad SPI modes, and monitoring the write/erase process completion. This module acts as a bridge between a higher-level bus or control logic and the lower-level SPI flash memory, facilitating data storage and manipulation on the SPI device. It supports both single and quad SPI write operations, as well as sector and block erase functionalities. The module also incorporates a state machine to manage the various stages of write and erase operations, ensuring data integrity and proper synchronization with the SPI flash memory.
+
+### 3. Input and Output Port Descriptions
+
+#### Inputs:
+
+- `i_clk`: Clock input. Synchronizes the module's operations.
+- `i_wreq`, `i_ereq`: Write and erase request signals. Indicate when a write or erase operation should be initiated.
+- `i_pipewr`, `i_endpipe`: Pipeline write and end-of-pipeline signals. Used for continuous data transmission and indicating the end of a data stream, respectively.
+- `i_addr`: Address input [21:0]. Specifies the memory address in the SPI flash where data should be written or from where data should be erased.
+- `i_data`: Data input [31:0]. The data to be written to the SPI flash memory.
+- `i_qspi_grant`: Grant signal from the SPI controller. Indicates when the module can proceed with SPI operations.
+- `i_spi_data`: Data input from SPI [31:0]. Used in read status operations to check the write-in-progress bit.
+- `i_spi_valid`: Indicates the validity of data received from SPI.
+- `i_spi_busy`, `i_spi_stopped`: Indicate the SPI's busy status and whether a previous operation has stopped, respectively.
+- `i_quad`: Quad mode enable signal. Determines if the operation should be in quad SPI mode.
+
+#### Outputs:
+
+- `o_bus_ack`: Bus acknowledgment signal. Indicates that a write or erase request has been accepted.
+- `o_qspi_req`: SPI request signal. Indicates when the module is requesting to perform an SPI operation.
+- `o_spi_wr`, `o_spi_hold`: Control signals for SPI write operations and holding the SPI bus, respectively.
+- `o_spi_word`: SPI data word [31:0]. The data to be transmitted over SPI.
+- `o_spi_len`: Length of SPI transaction [1:0]. Determines the number of bytes to be transmitted.
+- `o_spi_spd`, `o_spi_dir`: SPI speed and direction control signals. `o_spi_spd` selects between standard and quad SPI modes, while `o_spi_dir` controls the data direction.
+- `o_data_ack`: Data acknowledgment signal. Indicates that data has been successfully written or that an erase operation has been completed.
+- `o_wip`: Write-in-progress signal. Indicates that a write or erase operation is currently in progress.
+
+### 4. Internal Working Principle
+
+The `writeqspi` module operates based on a finite state machine (FSM) that manages the sequence of operations required to perform write and erase functions on a SPI flash memory. The FSM transitions through various states based on input requests (`i_wreq`, `i_ereq`), the operation mode (`i_quad`), and the status of the SPI interface (`i_spi_busy`, `i_spi_stopped`, `i_qspi_grant`).
+
+Upon receiving a write or erase request, the module first asserts a request to the SPI controller (`o_qspi_req`). Once granted (`i_qspi_grant`), it configures the SPI transaction parameters (such as data direction, speed, and transaction length) and transmits the command and address/data to the SPI flash. For write operations, it supports both standard and quad SPI modes, indicated by the `i_quad` signal. The module can handle continuous data streams through pipeline writing (`i_pipewr`) and monitors the completion of write/erase operations by reading the status register of the SPI flash.
+
+### 5. Implementation Logic Explanation
+
+The RTL module presented, `writeqspi`, is designed to interface with a Quad SPI (QSPI) memory device, facilitating both write and erase operations. The module operates under the control of an external clock signal (`i_clk`) and interacts with the QSPI device through a series of inputs and outputs that manage data transfer, command execution, and status monitoring. The module's behavior is contingent upon whether it is configured for read-only operations (`QSPI_READ_ONLY` directive) or full functionality, including writing and erasing.
+
+#### Combinational and Sequential Logic:
+
+- **State Machine:** At the heart of the module is a finite state machine (FSM) with states defined by `WR_IDLE`, `WR_START_WRITE`, `WR_START_QWRITE`, `WR_PROGRAM`, etc., controlling the progression of write and erase operations. This FSM transitions between states based on input signals and internal conditions, orchestrating the sequence of operations required to write data to or erase data from the QSPI device.
+
+- **Signal Conditioning and Control:** The module uses a combination of combinational and sequential logic to condition input signals and generate control signals. For example, the `accepted` signal is used to indicate when a write operation has been accepted, which is a function of the QSPI grant signal, the SPI busy status, and the write enable signal.
+
+- **Data and Command Handling:** The module prepares data and command payloads for the QSPI device by assembling them into the `o_spi_word` register, which is then transmitted based on the current operation (write, erase, status check, etc.). The data width, speed, and direction of the operation are controlled by signals such as `o_spi_len`, `o_spi_spd`, and `o_spi_dir`.
+
+#### Operational Flow:
+
+1. **Initialization:** Upon reset, the module initializes its internal registers and enters the `WR_IDLE` state, awaiting commands.
+
+2. **Write/Erase Request Handling:** When a write (`i_wreq`) or erase (`i_ereq`) request is received, the module transitions to the appropriate state to initiate the operation. This involves setting up the SPI command, address, and data, and then requesting access to the QSPI bus.
+
+3. **Data Transfer:** In the write states (`WR_START_WRITE`, `WR_START_QWRITE`, `WR_PROGRAM`), the module manages the transfer of data to the QSPI device, handling pipelined writes if enabled (`i_pipewr`).
+
+4. **Erase Operation:** For erase operations, the module sends an erase command with the target address. The size of the erase operation can vary based on the input data.
+
+5. **Status Checking:** After write or erase operations, the module enters a status checking loop (`WR_REQUEST_STATUS`, `WR_READ_STATUS`), polling the QSPI device for completion.
+
+6. **Completion and Idle:** Once operations are completed and the QSPI device indicates it is not busy, the module transitions back to the `WR_IDLE` state, ready for new commands.
+
+### 6. Internally Defined Signal Descriptions
+
+- **accepted:** A flag indicating when a write operation has been accepted by the QSPI device, used to transition the FSM to the next state.
+
+- **cyc, chk_wip, valid_status:** Control signals used within the FSM to manage the cycle of operations, check for write-in-progress status, and validate the status read from the QSPI device.
+
+- **wr_state:** A register holding the current state of the FSM, dictating the module's behavior at each clock cycle.
+
+- **o_bus_ack, o_data_ack:** Output signals indicating acknowledgment of bus operations and data transfers, respectively, to the requesting entity.
+
+- **o_qspi_req:** An output signal requesting access to the QSPI bus for operations.
+
+- **o_spi_wr, o_spi_hold, o_spi_word, o_spi_len, o_spi_spd, o_spi_dir:** Control signals and data prepared for transmission to the QSPI device, including write enable, hold, the data word, data length, speed, and direction of the operation.
+
+- **o_wip:** An output signal indicating that a write or erase operation is in progress.
+
+This module's design encapsulates a robust mechanism for interfacing with QSPI devices, offering controlled access for write and erase operations through a well-defined state machine and signal set.

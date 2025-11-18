@@ -1,0 +1,71 @@
+Module overview:
+ ### 1. Module Name
+
+The name of the RTL module is `aeMB_ctrl`.
+
+### 2. Module Functions
+
+The `aeMB_ctrl` module appears to be a control unit for a processor or a specific subsystem within a larger digital system, possibly related to an embedded microprocessor architecture. Its primary functions include:
+
+- Decoding instructions from an instruction register (`xIREG`) and generating control signals based on the opcode (`rOPC`) and other instruction fields.
+- Managing data path control signals for source (`rMXSRC`), target (`rMXTGT`), and alternate (`rMXALT`) multiplexers, as well as for the ALU operation selector (`rMXALU`).
+- Handling branch, load/store, arithmetic, and logical operations by interpreting the instruction set architecture's opcodes and generating appropriate control signals.
+- Controlling data memory and fast simple link (FSL) interface operations, including strobe signals (`dwb_stb_o`, `fsl_stb_o`) and write enable signals (`dwb_wre_o`, `fsl_wre_o`), based on the instruction being executed.
+- Implementing forwarding logic to resolve data hazards by checking if the current instruction's source registers match the destination register of the previous instruction.
+
+### 3. Input and Output Port Descriptions
+
+- **Inputs:**
+  - `rDLY`, `rIMM`, `rALT`, `rOPC`, `rRD`, `rRA`, `rRB`, `rPC`, `rBRA`, `rMSR_IE`, `xIREG`: These inputs represent various parts of the instruction being executed, including immediate values, opcode, register addresses, program counter, branch flags, and the instruction register itself.
+  - `dwb_ack_i`, `iwb_ack_i`, `fsl_ack_i`: Acknowledgment signals from the data wishbone bus, instruction wishbone bus, and fast simple link interface, respectively.
+  - `gclk`, `grst`, `gena`: Global clock, reset, and enable signals for synchronizing the module's operation.
+
+- **Outputs:**
+  - `rMXDST`, `rMXSRC`, `rMXTGT`, `rMXALT`, `rMXALU`: Control signals for multiplexers and the ALU operation selector, determining the data paths and operations to be performed based on the current instruction.
+  - `rRW`: The destination register address for the current instruction.
+  - `dwb_stb_o`, `dwb_wre_o`: Strobe and write enable signals for the data wishbone bus interface.
+  - `fsl_stb_o`, `fsl_wre_o`: Strobe and write enable signals for the fast simple link interface.
+
+### 4. Internal Working Principle
+
+The `aeMB_ctrl` module operates by decoding the current instruction (`xIREG`) and generating control signals that guide the processor's data paths and operations. The decoding process involves examining the opcode (`rOPC`) and other instruction fields to determine the type of operation (e.g., arithmetic, logical, branch, load/store) and the operands involved.
+
+Based on the decoded instruction, the module sets control signals for multiplexers (`rMXSRC`, `rMXTGT`, `rMXALT`) that select the sources and destinations of data within the processor. It also determines the operation to be performed by the ALU (`rMXALU`) and handles special cases like immediate operations, branches, and memory accesses.
+
+Forwarding logic is implemented to address data hazards by checking if the current instruction's source registers match the destination register of the previous instruction. If a match is found, the module forwards the result of the previous instruction to avoid stalls.
+
+The module also manages interactions with external interfaces, such as the data wishbone bus and the fast simple link, by generating strobe (`dwb_stb_o`, `fsl_stb_o`) and write enable (`dwb_wre_o`, `fsl_wre_o`) signals based on the instruction being executed. This ensures proper synchronization with memory and peripheral devices during load/store and other operations.
+
+### 5. Implementation Logic Explanation
+
+The RTL module `aeMB_ctrl` appears to be a control unit for a microprocessor or a similar computing entity, possibly part of an embedded system. The module is designed to interpret instruction codes and manage data flow between various components of the system, such as ALU (Arithmetic Logic Unit), memory, and special function registers. The control logic is primarily driven by the opcode (`rOPC`) of the current instruction and potentially other signals like `rRA`, `rRB`, and `rRD` which could represent register addresses or data.
+
+#### Combinational Logic:
+
+- **Opcode Interpretation**: The module decodes the current instruction's opcode (`rOPC`) to identify the operation type (e.g., shift, logical, multiply, branch, load/store). This decoding is done through a series of wire assignments that compare `rOPC` to predefined opcode values or patterns, setting flags like `fSFT`, `fLOG`, `fMUL`, etc., accordingly.
+  
+- **Forwarding Logic**: The module implements data forwarding logic to resolve data hazards. This is evident from signals like `wAFWD_M`, `wBFWD_M`, `wAFWD_R`, and `wBFWD_R`, which indicate whether the source operands for the current instruction need to be forwarded from a previous instruction's result.
+
+- **Control Signal Generation**: Based on the operation type and possibly other conditions (e.g., `rBRA` for branch taken), the module generates control signals (`xMXDST`, `xMXSRC`, `xMXTGT`, `xMXALU`, etc.) that dictate the data paths and operations in the execution stage. These signals are prepared in the combinational logic blocks and then registered at the clock edge.
+
+#### Sequential Logic:
+
+- **State Update**: The module updates its internal state (e.g., control signals like `rMXDST`, `rMXSRC`, `rMXTGT`, `rMXALU`, and interface signals like `rDWBSTB`, `rDWBWRE`, `rFSLSTB`, `rFSLWRE`) on the rising edge of the global clock (`gclk`) based on the prepared next-state values (`x*` signals) and the global reset (`grst`).
+
+- **Memory and Peripheral Interface Control**: The module controls interactions with memory and peripherals through signals like `dwb_stb_o`, `dwb_wre_o`, `fsl_stb_o`, and `fsl_wre_o`, which are managed based on the instruction type (e.g., load, store, get, put) and acknowledgments from the memory/peripheral interfaces (`dwb_ack_i`, `fsl_ack_i`).
+
+### 6. Internally Defined Signal Descriptions
+
+- **Opcode Flags (`fSFT`, `fLOG`, `fMUL`, etc.)**: These flags are set based on the current instruction's opcode (`rOPC`). They indicate the type of operation to be performed (e.g., shift, logical, multiply, branch, immediate value operation).
+
+- **Forwarding Signals (`wAFWD_M`, `wBFWD_M`, `wAFWD_R`, `wBFWD_R`)**: Indicate whether the operands for the current instruction should be forwarded from the results of a previous instruction, helping to resolve data hazards.
+
+- **Control Signals for Execution Stage (`xMXDST`, `xMXSRC`, `xMXTGT`, `xMXALU`)**: Prepared based on the decoded instruction type and forwarding conditions, these signals control the data paths and operations in the execution stage. They are registered and output as `rMXDST`, `rMXSRC`, `rMXTGT`, `rMXALU`.
+
+- **Memory and Peripheral Interface Signals (`xDWBSTB`, `xDWBWRE`, `xFSLSTB`, `xFSLWRE`)**: These signals manage the strobe and write enable lines for the data wishbone bus (`dwb_*`) and the fast simple link (`fsl_*`), indicating when a memory or peripheral operation is requested and whether it is a read or write operation.
+
+- **Acknowledgment Handling (`fDACK`, `fFACK`)**: These signals are used to detect acknowledgment from the memory and peripheral interfaces, ensuring that operations are completed before proceeding.
+
+- **Reset and Enable Handling**: The module responds to a global reset (`grst`) by resetting its internal state and control signals. It also uses a global enable signal (`gena`) to gate the updating of its internal state, allowing for power-saving or pausing the module's operation.
+
+This RTL module is a sophisticated piece of digital logic designed to control the flow of data and instructions within a microprocessor or embedded system, handling instruction decoding, data forwarding, and interfacing with memory and peripherals efficiently.

@@ -1,0 +1,78 @@
+Module overview:
+ ### 1. Module Name
+The name of this RTL module is `eth_cop`.
+
+### 2. Module Functions
+The `eth_cop` module acts as a bridge or a coprocessor within a system that utilizes the Wishbone bus interface. Its primary function is to manage and arbitrate access between two master devices and two slave devices. The module is specifically designed to handle Ethernet data transactions and memory access, as indicated by the parameterized address spaces for an Ethernet base address (`ETH_BASE`) and a memory base address (`MEMORY_BASE`). This module ensures that requests from the master devices are correctly routed to the appropriate slave device based on the address space being accessed. It also handles acknowledgment and error signaling back to the master devices, ensuring robust communication and error handling within the system.
+
+### 3. Input and Output Port Descriptions
+- **Inputs:**
+  - `wb_clk_i`: The clock input for the module. All operations are synchronized to the rising edge of this clock.
+  - `wb_rst_i`: The reset input. A high signal on this input resets the module to its initial state.
+  - `m1_wb_adr_i`, `m2_wb_adr_i`: 32-bit address inputs from master 1 and master 2, respectively. These addresses determine the target slave device for the transaction.
+  - `m1_wb_dat_i`, `m2_wb_dat_i`: 32-bit data inputs from master 1 and master 2, respectively. This data is to be written to the slave device in write operations.
+  - `m1_wb_sel_i`, `m2_wb_sel_i`: 4-bit select inputs from master 1 and master 2, respectively. These signals indicate the active byte lanes for the data bus.
+  - `m1_wb_cyc_i`, `m2_wb_cyc_i`: Cycle signals from master 1 and master 2, indicating the start and duration of a bus cycle.
+  - `m1_wb_stb_i`, `m2_wb_stb_i`: Strobe signals from master 1 and master 2, indicating a valid transfer.
+  - `m1_wb_we_i`, `m2_wb_we_i`: Write enable signals from master 1 and master 2. A high signal indicates a write operation; low indicates a read operation.
+  - `s1_wb_ack_i`, `s2_wb_ack_i`: Acknowledge inputs from slave 1 and slave 2, indicating the completion of a successful transaction.
+  - `s1_wb_err_i`, `s2_wb_err_i`: Error inputs from slave 1 and slave 2, indicating an error in the transaction.
+  - `s1_wb_dat_i`, `s2_wb_dat_i`: 32-bit data inputs from slave 1 and slave 2, containing data to be read by the master devices.
+
+- **Outputs:**
+  - `m1_wb_dat_o`, `m2_wb_dat_o`: 32-bit data outputs to master 1 and master 2, containing data read from the slave devices.
+  - `m1_wb_ack_o`, `m2_wb_ack_o`: Acknowledge outputs to master 1 and master 2, indicating the completion of a successful transaction.
+  - `m1_wb_err_o`, `m2_wb_err_o`: Error outputs to master 1 and master 2, indicating an error in the transaction.
+  - `s1_wb_adr_o`, `s2_wb_adr_o`: 32-bit address outputs to slave 1 and slave 2, specifying the target address for the transaction.
+  - `s1_wb_dat_o`, `s2_wb_dat_o`: 32-bit data outputs to slave 1 and slave 2, containing data to be written in write operations.
+  - `s1_wb_sel_o`, `s2_wb_sel_o`: 4-bit select outputs to slave 1 and slave 2, indicating the active byte lanes for the data bus.
+  - `s1_wb_we_o`, `s2_wb_we_o`: Write enable outputs to slave 1 and slave 2. A high signal indicates a write operation; low indicates a read operation.
+  - `s1_wb_cyc_o`, `s2_wb_cyc_o`: Cycle signals to slave 1 and slave 2, indicating the start and duration of a bus cycle.
+  - `s1_wb_stb_o`, `s2_wb_stb_o`: Strobe signals to slave 1 and slave 2, indicating a valid transfer.
+
+### 4. Internal Working Principle
+The `eth_cop` module operates based on the Wishbone bus protocol, arbitrating access between two master devices and two slave devices. Upon reset, all internal registers are cleared, and the module awaits bus requests from the master devices.
+
+- **Address Decoding:** When a master device initiates a transaction, the module decodes the address to determine whether the transaction is targeted at the Ethernet device or the memory. This is achieved through comparison with the `ETH_BASE`, `ETH_WIDTH`, `MEMORY_BASE`, and `MEMORY_WIDTH` parameters.
+
+- **Transaction Routing:** Based on the decoded address, the module routes the transaction to the appropriate slave device by setting up the slave's address, data, select, write enable, cycle, and strobe signals accordingly. It also marks the transaction as in progress to prevent other transactions from interfering.
+
+- **Acknowledgment and Error Handling:** Once the slave device completes the transaction, it signals this through its acknowledge or error output. The `eth_cop` module captures these signals and forwards them to the respective master device, completing the transaction. If an error is detected or if the transaction targets an unspecified address space, the module signals an error to the master device.
+
+- **Concurrency Management:** The module manages concurrent access attempts from both master devices, ensuring that only one transaction is active at any given time for each slave device. It uses internal state registers to track the progress of transactions and prevent conflicts.
+
+### 5. Implementation Logic Explanation
+
+The RTL module `eth_cop` is designed to act as a bridge or coprocessor within a system that utilizes the Wishbone bus protocol. This module interfaces with two master devices (`m1`, `m2`) and two slave devices (`s1`, `s2`), managing data transactions between these entities based on the addressing scheme. The module is parameterized to allow for flexible base addresses and address widths for Ethernet (`ETH_`) and memory (`MEMORY_`) spaces, which are presumably represented by `s1` and `s2`, respectively.
+
+#### Sequential Logic:
+
+- **Reset and Initialization**: Upon a reset signal (`wb_rst_i`), internal registers that track the progress of transactions (`m1_in_progress`, `m2_in_progress`), along with the Wishbone signals directed towards the slave devices (`s1_wb_*`, `s2_wb_*`), are cleared. This ensures that the module starts in a known state, ready to handle new transactions.
+
+- **Transaction Handling**: The core of the module's functionality is encapsulated within a state machine that reacts to incoming transaction requests from the master devices. Based on the address provided by a master device, the module determines whether the transaction is intended for `s1` (Ethernet) or `s2` (Memory). It then forwards the transaction details (address, data, control signals) to the appropriate slave device. The module also handles the acknowledgment and error signals from the slave devices, relaying them back to the initiating master device.
+
+- **Error Handling and Timeouts**: The module monitors for error conditions and timeouts (using a counter `cnt` that increments when a slave device transaction is in progress but not yet acknowledged). If an error is detected or a timeout occurs, the module generates debug messages and halts, indicating a problem in the transaction.
+
+#### Combinational Logic:
+
+- **Address Matching**: The module uses combinational logic to determine whether a given transaction's address falls within the ranges designated for `s1` or `s2`. This is achieved through comparisons with the `ETH_BASE`, `ETH_WIDTH`, `MEMORY_BASE`, and `MEMORY_WIDTH` parameters.
+
+- **Transaction Request Detection**: The module detects active transaction requests from the master devices by examining the `*_wb_cyc_i` and `*_wb_stb_i` signals in conjunction with the address matching logic. This allows the module to identify when a new transaction is initiated and which slave device it targets.
+
+- **Error and Acknowledgment Logic**: Combinational logic is used to generate immediate responses to certain conditions, such as invalid addresses (not falling within the designated ranges for `s1` or `s2`), and to manage the acknowledgment and error signals based on the state of transactions and responses from the slave devices.
+
+### 6. Internally Defined Signal Descriptions
+
+- **`m1_in_progress`, `m2_in_progress`**: These registers indicate whether a transaction initiated by `m1` or `m2` is currently being processed. They ensure that the module does not start a new transaction from the same master until the current one is completed.
+
+- **`s1_wb_adr_o`, `s1_wb_sel_o`, `s1_wb_we_o`, `s1_wb_dat_o`, `s1_wb_cyc_o`, `s1_wb_stb_o`**: These signals represent the address, byte select, write enable, data output, cycle, and strobe signals directed towards the `s1` slave device. They are driven by the module based on transactions initiated by `m1` or `m2` that target the `s1` address space.
+
+- **`s2_wb_adr_o`, `s2_wb_sel_o`, `s2_wb_we_o`, `s2_wb_dat_o`, `s2_wb_cyc_o`, `s2_wb_stb_o`**: Similar to the `s1` signals, these represent the transaction details directed towards the `s2` slave device for transactions targeting the `s2` address space.
+
+- **`m1_wb_ack_o`, `m2_wb_ack_o`, `m1_wb_dat_o`, `m2_wb_dat_o`, `m1_wb_err_o`, `m2_wb_err_o`**: These signals are used to relay the acknowledgment, data, and error status from the slave devices back to the initiating master devices. They ensure that the master devices are informed of the outcome of their transactions.
+
+- **`m_wb_access_finished`**: This wire is a combinational signal that indicates when a transaction has been completed, either successfully (acknowledgment received) or with an error. It is used within the state machine to transition out of the in-progress state.
+
+- **`cnt`**: This integer is used as a timeout counter, incrementing when a transaction is in progress but not yet acknowledged. If it reaches a threshold (indicating a timeout), the module generates a debug message and halts.
+
+This module's design allows for efficient handling of Wishbone transactions between two master devices and two slave devices, with robust error handling and debug capabilities.

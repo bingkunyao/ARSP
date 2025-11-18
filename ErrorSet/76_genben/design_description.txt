@@ -1,0 +1,78 @@
+Module overview:
+ ### 1. Module Name
+
+The name of this RTL module is `wbscope`.
+
+### 2. Module Functions
+
+The `wbscope` module is designed to function as a digital storage oscilloscope (DSO) within a system, interfacing with a Wishbone bus. Its primary objectives include capturing and storing digital signals for analysis, based on specific triggering conditions. The module can be used for debugging and monitoring the internal states or signals of a digital system. It supports functionalities such as manual trigger, automatic trigger based on a signal, and configurable hold-off time to control the capture window after a trigger event.
+
+### 3. Input and Output Port Descriptions
+
+- **Inputs:**
+  - `i_clk`: System clock input for the module's operation.
+  - `i_ce`: Clock enable signal, used to control the sampling of the input data.
+  - `i_trigger`: Trigger input signal, used to start data capture based on its logic level or edge.
+  - `i_data`: Data input bus, carrying the digital signals to be captured by the module.
+  - `i_wb_clk`: Wishbone bus clock input, used for interfacing with the Wishbone bus.
+  - `i_wb_cyc`: Wishbone cycle signal, indicating an active Wishbone operation.
+  - `i_wb_stb`: Wishbone strobe signal, indicating a valid data transfer cycle.
+  - `i_wb_we`: Wishbone write enable signal, distinguishing between read and write operations.
+  - `i_wb_addr`: Wishbone address input, used to select between control and data registers.
+  - `i_wb_data`: Wishbone data bus for input, used for writing configuration data to the module.
+
+- **Outputs:**
+  - `o_wb_ack`: Wishbone acknowledge output, indicating the completion of a read or write operation.
+  - `o_wb_stall`: Wishbone stall signal, indicating that the module is not ready to complete the current operation.
+  - `o_wb_data`: Wishbone data bus for output, used for reading captured data or status information from the module.
+  - `o_interrupt`: Interrupt output signal, used to notify the system of specific events, such as the completion of data capture.
+
+### 4. Internal Working Principle
+
+The `wbscope` module operates by continuously monitoring the `i_data` input while waiting for a trigger condition specified by the `i_trigger` input and the internal configuration registers. Upon detecting a trigger event, it starts capturing the input data into an internal memory buffer, based on the clock signals `i_clk` and `i_ce`. The size of this buffer and the capture conditions, such as the hold-off time, can be configured through the Wishbone interface using the `i_wb_data` input.
+
+The module supports synchronous and asynchronous operation modes, determined by the `SYNCHRONOUS` parameter. In synchronous mode, the control and data paths are directly driven by the input signals and internal state machines. In asynchronous mode, additional registers are used to synchronize control signals between the `i_clk` and `i_wb_clk` domains, ensuring reliable operation when these clocks are not phase-aligned.
+
+Configuration and control of the module are achieved through the Wishbone interface, allowing the system to set up the module, initiate captures, and read out captured data. The module provides feedback through the `o_wb_ack`, `o_wb_stall`, and `o_wb_data` signals, indicating its status and allowing the retrieval of captured data or the module's current configuration.
+
+The `o_interrupt` signal is used to notify the system of significant events, such as the completion of a data capture sequence, enabling the system to react accordingly, for example, by reading the captured data for analysis.
+
+### 5. Implementation Logic Explanation
+
+The RTL module presented is designed to interface with a Wishbone bus and acts as a digital storage oscilloscope (DSO) logic. It captures data based on specific trigger conditions and allows for the data to be read back via the Wishbone bus interface. The module is parameterized, allowing for customization of memory depth (`LGMEM`), bus width (`BUSW`), and operation mode (`SYNCHRONOUS`). The core functionalities include data capture on trigger events, memory storage, and data readback mechanisms, alongside control and status reporting through the Wishbone interface.
+
+#### Combinational and Sequential Logic:
+
+- **Data Capture and Trigger Logic**: The module captures data from the `i_data` input whenever the capture enable (`i_ce`) signal is high, and either a manual trigger is activated, an external trigger (`i_trigger`) is detected (if not disabled), or it has already been triggered but not yet stopped. The trigger logic ensures that data capture starts at the right conditions and continues until a specified holdoff period is met.
+
+- **Memory Management**: Captured data is stored in a block of memory (`mem`) indexed by a write address (`waddr`). The write address increments with each data capture until a trigger stop condition is met. The memory depth is determined by the `LGMEM` parameter, allowing for a flexible storage size.
+
+- **Wishbone Interface**: The module interfaces with a Wishbone bus for configuration, control, and data readback. It responds to read and write commands, allowing external control over its operation, including setting trigger conditions, resetting the capture logic, and reading captured data. The interface uses signals like `i_wb_stb`, `i_wb_we`, `i_wb_addr`, and `i_wb_data` for strobe, write enable, address selection, and data transfer, respectively.
+
+- **Synchronization and Reset Logic**: Depending on the `SYNCHRONOUS` parameter, the module can operate in either a synchronous or asynchronous mode relative to the Wishbone bus clock (`i_wb_clk`) and the data capture clock (`i_clk`). Reset and configuration logic ensure that the module can be correctly initialized and reconfigured as needed.
+
+### 6. Internally Defined Signal Descriptions
+
+- **`raddr`, `waddr`**: These registers manage the read and write addresses for accessing the `mem` array, facilitating the sequential capture and readback of data.
+
+- **`mem`**: An array serving as the storage for captured data, with its size determined by the `LGMEM` parameter.
+
+- **`br_config`**: A register holding configuration bits, including reset request, manual trigger enable, trigger disable, and holdoff period settings.
+
+- **`bw_reset_request`, `bw_manual_trigger`, `bw_disable_trigger`, `bw_holdoff`**: Wires derived from `br_config` that convey the current configuration state for reset, manual trigger, trigger disable, and holdoff period.
+
+- **`dw_reset`, `dw_manual_trigger`, `dw_disable_trigger`**: Wires used for internal logic operations, reflecting the desired state for reset, manual trigger, and trigger disable conditions. Their values depend on the `SYNCHRONOUS` parameter.
+
+- **`dr_triggered`, `dr_primed`, `dr_stopped`**: Registers controlling the state of data capture, indicating whether the module has been triggered, is primed for triggering, or has stopped capturing data.
+
+- **`counter`**: A register used to count the number of captured data points since the last trigger, contributing to the determination of when to stop capturing based on the holdoff period.
+
+- **`bw_stopped`, `bw_triggered`, `bw_primed`**: Wires reflecting the current state of data capture, used for status reporting and control logic.
+
+- **`br_wb_ack`**: A register used to generate the Wishbone acknowledgment signal (`o_wb_ack`), indicating that a read or write operation has been completed.
+
+- **`nxt_mem`**: A register used for buffering data to be sent over the Wishbone bus during read operations.
+
+- **`br_level_interrupt`**: A register controlling the generation of an interrupt signal (`o_interrupt`), indicating that data capture has stopped and data is ready for readback.
+
+This module is designed with flexibility and configurability in mind, allowing it to be adapted to various data capture and monitoring applications. Its integration with the Wishbone bus interface makes it suitable for embedded systems requiring on-the-fly data capture and analysis.

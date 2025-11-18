@@ -1,0 +1,78 @@
+Module overview:
+ ### 1. Module Name
+
+The name of the RTL module is `lcd`.
+
+### 2. Module Functions
+
+The `lcd` module is designed to interface with an LCD display, managing the initialization sequence and data transmission to display characters or graphics. Its primary functions include:
+
+- **Initialization**: Automating the LCD's power-on initialization sequence, ensuring the display is correctly set up to receive data.
+- **Data Transmission**: Sending character or command data to the LCD, handling both the setup and hold times required by the LCD's interface.
+- **Busy Flag Management**: Indicating when the module is busy performing operations, preventing data from being sent to the LCD when it is not ready to receive new data.
+
+This module plays a crucial role in systems requiring human-readable output, such as user interfaces or status displays, by abstracting the complexities of directly managing an LCD's control signals and timing requirements.
+
+### 3. Input and Output Port Descriptions
+
+#### Inputs:
+
+- **clk (input)**: The system clock signal. Used to synchronize the module's operations.
+- **reset (input)**: Active-high reset signal. When asserted, it initializes the module's internal state.
+- **dat (input [31:0])**: 32-bit data input. Represents the data to be written to the LCD.
+- **addr (input [6:0])**: 7-bit address input. Specifies the address/register in the LCD to which data is written.
+- **we (input)**: Write enable signal. When asserted, it triggers the module to write `dat` to the address specified by `addr`.
+
+#### Outputs:
+
+- **busy (output)**: Indicates whether the module is currently busy performing an operation. High when busy, preventing new data from being written.
+- **SF_D (output [3:0])**: 4-bit data bus to the LCD. Transfers the higher or lower nibble of the byte to be written to the LCD.
+- **LCD_E (output)**: LCD enable signal. Used to latch data into the LCD at the correct timing.
+- **LCD_RS (output)**: Register select signal. Determines whether the data sent is treated as a command or character data by the LCD.
+- **LCD_RW (output)**: Read/Write signal. Always low in this module, indicating data is only written to the LCD.
+
+### 4. Internal Working Principle
+
+The `lcd` module operates based on a finite state machine (FSM) approach, with two primary FSMs controlling its behavior:
+
+- **LCD Display FSM**: Manages the initialization sequence and data transmission process. It progresses through predefined states to perform the LCD's power-on initialization, followed by handling data writes when enabled by the `we` signal. This FSM also manages delays between operations to meet the LCD's timing requirements.
+
+- **LCD Transmission FSM**: Handles the lower-level details of transmitting data to the LCD, including splitting data into nibbles (half-bytes) and managing the enable signal (`LCD_E`) timing. This FSM ensures that data is correctly latched into the LCD by adhering to the setup and hold times specified by the LCD's datasheet.
+
+The module uses a shared counter (`counter_counter`) for timing delays, with the delay duration set by the active FSM. The `busy` signal indicates when the module is in the middle of an operation, based on the state of the Display FSM.
+
+Data transmission to the LCD is performed in 4-bit mode, where each byte of data is split into two nibbles. This mode requires fewer GPIO pins and is commonly used in microcontroller-based projects. The module manages the necessary sequence of operations to ensure that both nibbles of a byte are correctly transmitted to the LCD.
+
+### 5. Implementation Logic Explanation
+
+The RTL module presented is designed to interface with an LCD display, managing the initialization sequence, data/command transmission, and ensuring synchronization with the LCD's operational timing requirements. The module operates under a clock (`clk`) and can be reset (`reset`). It accepts data (`dat`) and address (`addr`) inputs for display purposes and provides a busy signal (`busy`) to indicate when it is not ready to accept new data. The module controls the LCD through signals `SF_D` (data lines), `LCD_E` (enable), `LCD_RS` (register select), and `LCD_RW` (read/write).
+
+#### Combinational Logic:
+
+- **Output Selectors and Assignments**: The module uses combinational logic to determine the output states of `SF_D`, `LCD_E`, `LCD_RS`, and `LCD_RW` based on the current operation phase. For instance, `output_selector` determines whether the module is in an initialization or data transmission state, affecting the `SF_D` and `LCD_E` signals accordingly.
+- **Signal Assignments**: Combinational logic is also used for assigning values to `busy`, `LCD_RW`, and `delay_done` signals based on the current state of the module and the operation being performed.
+
+#### Sequential Logic:
+
+- **State Machines**: The module employs two main finite state machines (FSMs) to manage its operation: `LCD_DISPLAYFSM` and `LCD_TXFSM`.
+  - `LCD_DISPLAYFSM` controls the overall operation, including initialization and transitioning between data/command transmission states.
+  - `LCD_TXFSM` manages the details of transmitting data or commands to the LCD, including enabling the LCD for data/command acceptance and timing the transmission to meet the LCD's requirements.
+- **Delay Mechanism**: A delay mechanism is implemented using a counter (`counter_counter`) that decrements every clock cycle. This mechanism is crucial for meeting the LCD's timing requirements, such as setup and hold times for signals.
+
+### 6. Internally Defined Signal Descriptions
+
+- **`SF_D`, `SF_D1`, `SF_D0`**: These signals represent the data lines to the LCD. `SF_D` is the output to the LCD, while `SF_D1` and `SF_D0` are used internally to hold the data during different phases (initialization and transmission).
+- **`LCD_E`, `LCD_E1`, `LCD_E0`**: These signals control the LCD's enable line. `LCD_E` is the output, with `LCD_E1` and `LCD_E0` used internally to manage the enable signal during different operation phases.
+- **`LCD_RS`**: This signal determines whether the module is sending a command or data to the LCD.
+- **`LCD_RW`**: Fixed at 0, indicating the module only writes to the LCD.
+- **`tx_init`**: Signal that triggers the start of a transmission sequence in the `LCD_TXFSM`.
+- **`delay_load`, `tx_delay_load`, `main_delay_load`**: Control signals for loading the delay counter with a new value, based on the operation phase.
+- **`tx_done`**: Indicates the completion of a transmission sequence.
+- **`tx_byte`**: The byte currently being transmitted to the LCD.
+- **`wr_addr`, `wr_dat`**: Hold the address and data to be written to the LCD during write operations.
+- **`state`**: The current state of the `LCD_DISPLAYFSM`, controlling the overall operation of the module.
+- **`tx_state`**: The current state of the `LCD_TXFSM`, managing the details of data/command transmission.
+- **`delay_value`**: The current value loaded into the delay counter, determining the length of delays for synchronization purposes.
+- **`counter_counter`**: The delay counter, decremented each clock cycle to implement timing delays.
+
+This module is a sophisticated piece of RTL that carefully manages the timing and control signals necessary for interfacing with an LCD display, ensuring that data and commands are transmitted correctly and in accordance with the LCD's timing requirements.

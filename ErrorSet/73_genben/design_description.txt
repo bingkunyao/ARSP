@@ -1,0 +1,82 @@
+Module overview:
+ ### 1. Module Name
+
+The name of the RTL module is `tiny_spi`.
+
+### 2. Module Functions
+
+The `tiny_spi` module is designed to implement a basic Serial Peripheral Interface (SPI) communication protocol. SPI is a synchronous serial communication interface specification used for short-distance communication, primarily in embedded systems. The primary functions of this module include:
+
+- **Data Transmission:** Ability to transmit data serially to peripheral devices using the Master Out Slave In (MOSI) line.
+- **Data Reception:** Capability to receive data serially from peripheral devices through the Master In Slave Out (MISO) line.
+- **Clock Generation:** Produces a serial clock (SCLK) to synchronize data transmission and reception.
+- **Configuration and Control:** Allows configuration of SPI communication parameters and control of the transmission process through register writes.
+- **Interrupt Generation:** Generates interrupts based on transmission completion or readiness for new data transmission, enhancing system efficiency by avoiding polling.
+
+This module plays a crucial role in enabling communication with peripheral devices in systems where space and pin constraints are significant, such as microcontrollers, sensors, and memory interfaces.
+
+### 3. Input and Output Port Descriptions
+
+- **Inputs:**
+  - `rst_i`: Reset input. A high signal on this port resets the module.
+  - `clk_i`: Clock input. Provides the clock signal for the module's operation.
+  - `stb_i`: Strobe input. Indicates a valid data transfer or configuration command.
+  - `we_i`: Write enable. Distinguishes between read and write operations.
+  - `dat_i [31:0]`: Data input. 32-bit input data for transmission or configuration.
+  - `adr_i [2:0]`: Address input. Selects the internal register or function to be accessed.
+  - `MISO`: Master In Slave Out. Serial data input from the peripheral device.
+
+- **Outputs:**
+  - `dat_o [31:0]`: Data output. 32-bit output data received from the peripheral device or status information.
+  - `int_o`: Interrupt output. Indicates the completion of data transmission or readiness for new data.
+  - `MOSI`: Master Out Slave In. Serial data output to the peripheral device.
+  - `SCLK`: Serial Clock. Clock output to synchronize data transmission and reception.
+
+### 4. Internal Working Principle
+
+The `tiny_spi` module operates based on the state machine principle, transitioning through various states to manage the SPI communication process. The internal working can be summarized as follows:
+
+- **Initialization:** Upon reset, the module initializes its internal registers and state to default values, preparing for operation.
+
+- **Configuration:** The module supports configuration through specific addresses accessed via the `adr_i`, `dat_i`, and control signals (`stb_i`, `we_i`). Configuration parameters include clock polarity (`cpol`), clock phase (`cpha`), baud rate, and interrupt enable flags.
+
+- **Data Transmission and Reception:** The module shifts data in and out serially through the `MOSI` and `MISO` lines, respectively. It uses an internal shift register (`sr8`) for this purpose. The transmission process is governed by a baud rate divider and a bit counter, ensuring data is clocked out and in at the correct rate and order.
+
+- **Clock Generation:** The serial clock (`SCLK`) is generated based on the configured clock polarity and phase, ensuring correct timing alignment with the peripheral device.
+
+- **Interrupt Management:** The module generates interrupts based on the transmission completion or readiness for a new transmission, allowing efficient data handling by the host processor.
+
+- **State Machine:** The core operation is managed by a state machine with states such as `IDLE`, `PHASE1`, and `PHASE2`, controlling the sequence of operations during SPI communication.
+
+### 5. Implementation Logic Explanation
+
+The RTL module presented is a `tiny_spi`, which stands for a small Serial Peripheral Interface (SPI) controller. SPI is a synchronous serial communication interface specification used for short-distance communication, primarily in embedded systems. The module is designed to interface with SPI devices, handling data transmission and reception through a master-slave architecture. The core components of the SPI protocol, such as the clock (SCLK), Master Out Slave In (MOSI), and Master In Slave Out (MISO) lines, are implemented within this module. The module's functionality is governed by both combinational and sequential logic, enabling it to perform SPI transactions based on the configured parameters and input signals.
+
+#### Combinational Logic:
+
+- **Signal Assignments and Conditions**: The module uses combinational logic to decode input signals and control flags, such as `stb_i` (strobe input), `we_i` (write enable), and `adr_i` (address input), to generate control signals like `wstb`, `istb`, `cstb`, and `bstb`. These signals are pivotal in determining the operation to be performed, such as writing to internal registers or initiating a data transfer.
+- **Data Output Logic**: The combinational logic also determines the output data (`dat_o`) based on the addressed internal register. This is achieved through multiplexing the outputs of different internal registers based on the address input.
+- **SPI Mode Configuration**: The SPI mode (clock polarity `cpol` and phase `cpha`) is dynamically determined based on the parameter `SPI_MODE` or can be configured at runtime via specific control registers.
+
+#### Sequential Logic:
+
+- **State Machine**: At the heart of the module is a finite state machine (FSM) with states `IDLE`, `PHASE1`, and `PHASE2`, which governs the SPI communication process. The transitions between these states are controlled by the current state, the baud rate counter (`cc`), and the bit counter (`bc`), orchestrating the timing and sequencing of SPI clock pulses and data sampling or shifting.
+- **Data Shift Register**: A shift register (`sr8`) is used to serialize data for transmission (MOSI) and deserialize received data (MISO). The loading and shifting of this register are controlled by the FSM and specific control signals.
+- **Baud Rate and Bit Counters**: The module implements counters to manage the SPI clock frequency (via `ccr` and `cc`) and to keep track of the number of bits transmitted or received (`bc`).
+
+### 6. Internally Defined Signal Descriptions
+
+- **`sr8`, `bb8`**: 8-bit shift registers used for data transmission and buffering. `sr8` is directly involved in the SPI data exchange, while `bb8` serves as a buffer for data to be transmitted.
+- **`sr8_sf`**: Represents the next state of `sr8` after shifting, used for serial data transmission or reception.
+- **`bc`, `bc_next`**: Bit counter and its next state, used to track the number of bits transmitted or received in an SPI transaction.
+- **`ccr`, `cc`, `cc_next`**: Baud rate counter register and its current and next states, controlling the SPI clock frequency.
+- **`misod`**: Sampled MISO data, used in the deserialization process.
+- **`cstb`, `wstb`, `bstb`, `istb`**: Control signals generated based on the operation being performed (configuration, write, baud rate configuration, interrupt settings).
+- **`sck`**: SPI clock signal, generated based on the SPI mode and the state machine.
+- **`sf`, `ld`**: Control flags indicating whether to shift or load the data shift register.
+- **`bba`**: Busy flag, indicating an ongoing SPI transaction.
+- **`txren`, `txeen`**: Control flags for enabling transmit and transmit-end interrupts.
+- **`cpolr`, `cphar`**: Runtime-configurable SPI mode flags for clock polarity and phase.
+- **`spi_seq`, `spi_seq_next`**: Current and next states of the SPI communication FSM.
+
+This module encapsulates the core functionality required for SPI communication, including configuration through internal registers, data transmission and reception, and interrupt management. The design leverages a combination of combinational and sequential logic to efficiently manage SPI transactions, adhering to the configured SPI mode and timing requirements.

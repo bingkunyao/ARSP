@@ -1,0 +1,88 @@
+Module overview:
+ ### 1. Module Name
+The name of the RTL module is `fpu_exceptions`.
+
+### 2. Module Functions
+The `fpu_exceptions` module is designed to handle and classify exceptions that may occur during floating-point operations in a Floating Point Unit (FPU). Its primary functions include detecting various types of floating-point exceptions such as overflow, underflow, division by zero, invalid operations, and inexact results. It also categorizes Not-a-Number (NaN) inputs and outputs, and manages the output based on the type of exception encountered. This module plays a crucial role in ensuring the robustness and reliability of floating-point arithmetic operations within a broader system, such as a microprocessor or a digital signal processor, by providing detailed exception handling capabilities.
+
+### 3. Input and Output Port Descriptions
+- **Inputs:**
+  - `clk`: Clock signal (input, 1 bit) - Synchronizes the module's operations.
+  - `rst`: Reset signal (input, 1 bit) - Resets the module's internal state when asserted.
+  - `enable`: Enable signal (input, 1 bit) - Activates the module's processing when asserted.
+  - `rmode`: Rounding mode (input, 2 bits) - Specifies the rounding mode for floating-point operations.
+  - `opa`, `opb`: Operand A and Operand B (input, 64 bits each) - The floating-point operands for the operation.
+  - `in_except`: Input exception flags (input, 64 bits) - Specifies any pre-existing exceptions before the current operation.
+  - `exponent_in`: Input exponent (input, 12 bits) - The exponent part of the floating-point result.
+  - `mantissa_in`: Input mantissa (input, 2 bits) - The least significant bits of the mantissa part of the floating-point result, used for rounding decisions.
+  - `fpu_op`: Floating-point operation code (input, 3 bits) - Specifies the type of floating-point operation to be performed.
+
+- **Outputs:**
+  - `out`: Output value (output, 64 bits) - The result of the floating-point operation or the exception handling.
+  - `ex_enable`: Exception enable (output, 1 bit) - Indicates if any exception has occurred.
+  - `underflow`: Underflow flag (output, 1 bit) - Indicates an underflow exception.
+  - `overflow`: Overflow flag (output, 1 bit) - Indicates an overflow exception.
+  - `inexact`: Inexact result flag (output, 1 bit) - Indicates an inexact result exception.
+  - `exception`: General exception flag (output, 1 bit) - Indicates if any exception (except invalid) has occurred.
+  - `invalid`: Invalid operation flag (output, 1 bit) - Indicates an invalid operation exception.
+
+### 4. Internal Working Principle
+The `fpu_exceptions` module operates by first initializing its internal state upon reset. When enabled, it evaluates the input operands (`opa`, `opb`), the operation code (`fpu_op`), and any pre-existing exceptions (`in_except`) to determine the nature of the current operation and identify potential exceptions.
+
+It categorizes exceptions into several types based on the operation and operands:
+- **NaN (Not-a-Number) Handling:** Identifies if the inputs are NaN values (either signaling NaNs or quiet NaNs) and determines the appropriate NaN output.
+- **Infinity Handling:** Detects operations involving infinity, such as multiplication or division by infinity, and sets the output accordingly.
+- **Zero Handling:** Manages cases like division by zero and multiplication of zero by infinity.
+- **Overflow and Underflow:** Identifies conditions where the operation's result is too large or too small to be represented in the floating-point format.
+- **Invalid Operations:** Detects operations that are mathematically undefined or not allowed, such as dividing zero by zero or subtracting infinities.
+- **Inexact Results:** Flags operations where the result cannot be exactly represented in the floating-point format.
+
+### 5. Implementation Logic Explanation
+
+The RTL module `fpu_exceptions` is designed to handle exceptions in floating-point operations (FPOs) within a digital system, specifically focusing on operations involving IEEE 754 standard double-precision floating-point numbers. The module monitors and reacts to various exceptional conditions such as underflow, overflow, division by zero, invalid operations, and inexact results. It operates synchronously with a clock signal and includes a reset mechanism.
+
+#### Combinational Logic:
+
+The module employs a significant amount of combinational logic to decode the inputs and determine the state of various exceptional conditions. This logic includes:
+
+- **Exception Detection:** The module decodes the inputs `opa` and `opb` (operands) and `in_except` (input exceptions) to identify specific conditions like QNaN (Quiet Not a Number), SNaN (Signaling NaN), infinity (positive and negative), and zero. It also determines the type of floating-point operation (addition, subtraction, multiplication, division) being performed based on `fpu_op`.
+
+- **Exception Classification:** Based on the decoded information and the operation requested, the module classifies potential exceptions such as division by zero, multiplication of zero by infinity, addition/subtraction of infinities, etc. It also identifies if the operation would result in an overflow, underflow, or inexact result.
+
+- **NaN and Infinity Handling:** The module generates appropriate outputs for NaN and infinity cases, including selecting the correct NaN payload and handling rounding modes for infinity.
+
+#### Sequential Logic:
+
+The module's sequential logic is triggered on the rising edge of the clock signal. It consists of two primary blocks:
+
+- **Exception Flags and Output Generation:** Based on the combinational logic's classification of the operation and its potential exceptions, this block updates the exception flags (`underflow`, `overflow`, `inexact`, `exception`, `invalid`) and determines the final output value. This includes handling NaN outputs, infinities, and adjusting outputs based on rounding modes.
+
+- **Reset Logic:** Upon a reset signal, all internal registers and flags are cleared, ensuring the module is in a known state.
+
+### 6. Internally Defined Signal Descriptions
+
+- **Exception Detection Signals:**
+  - `opa_et_zero`, `opb_et_zero`, `input_et_zero`: Indicate if operands `opa`, `opb`, and the input exception `in_except` are effectively zero.
+  - `opa_QNaN`, `opb_QNaN`, `opa_SNaN`, `opb_SNaN`: Detect if operands are Quiet NaN or Signaling NaN.
+  - `opa_pos_inf`, `opb_pos_inf`, `opa_neg_inf`, `opb_neg_inf`: Detect if operands are positive or negative infinity.
+  - `opa_inf`, `opb_inf`: Indicate if operands are any form of infinity.
+
+- **Operation Type Signals:**
+  - `add`, `subtract`, `multiply`, `divide`: Indicate the type of floating-point operation being performed.
+
+- **Exception Condition Signals:**
+  - `div_by_0`, `div_0_by_0`, `div_inf_by_inf`, `mul_0_by_inf`: Specific exceptional conditions like division by zero, 0/0, infinity/infinity, and 0*infinity.
+  - `add_inf`, `sub_inf`, `mul_inf`, `div_inf`: Indicate operations resulting in infinity.
+  - `addsub_inf_invalid`: Specific case where addition or subtraction of infinities results in an invalid operation.
+  - `NaN_input`, `SNaN_input`: Indicate if the operation involves NaN inputs, specifically signaling NaNs.
+
+- **Exception Trigger Signals:**
+  - `underflow_trigger`, `overflow_trigger`, `invalid_trigger`, `inexact_trigger`, `except_trigger`: Flags that are set based on the detected exceptional conditions to indicate the type of exception.
+  - `enable_trigger`, `NaN_out_trigger`, `SNaN_trigger`: Control signals that enable exception handling, NaN output generation, and signaling NaN exception.
+
+- **Output Preparation Signals:**
+  - `NaN_output_0`, `NaN_output`: Prepared NaN outputs based on the operation and exception conditions.
+  - `out_inf`, `inf_round_down`: Outputs for infinity cases, including handling of rounding modes.
+  - `out_0`, `out_1`, `out_2`: Intermediate and final output values, progressively adjusted based on the exception handling logic.
+
+This module's design encapsulates a comprehensive approach to handling floating-point exceptions, ensuring compliance with the IEEE 754 standard and maintaining the integrity of floating-point operations within digital systems.

@@ -1,0 +1,63 @@
+Module overview:
+ ### 1. Module Name
+
+The name of this RTL module is `tbu`.
+
+### 2. Module Functions
+
+The `tbu` module appears to function as a state-driven data processing unit, primarily designed to handle two sets of input data (`d_in_0` and `d_in_1`) based on a selection signal. Its core objectives include:
+
+- **Data Selection and Output:** Depending on the `selection` signal, the module selects between two 8-bit input data streams (`d_in_0` and `d_in_1`) and processes them in a state-dependent manner. The processed bit is then outputted through `d_o`.
+- **Write Enable Control:** The module generates a write enable signal (`wr_en`), which is likely used to control the writing of the processed output to a memory or register outside this module.
+- **State Management:** The module transitions through various states based on the current state and the input data bit being processed. This state-driven approach allows for dynamic data handling based on the module's current operational phase.
+
+### 3. Input and Output Port Descriptions
+
+- **Inputs:**
+  - `clk` (input): The clock signal driving the synchronous operations within the module, including state transitions and data processing.
+  - `rst` (input): A reset signal that initializes the module's state and internal registers when asserted low.
+  - `enable` (input): An enable signal that allows the module to operate when high; when low, the module resets to its initial state.
+  - `selection` (input): A selection signal that determines which input data stream (`d_in_0` or `d_in_1`) is to be processed.
+  - `d_in_0` (input, 8-bit): The first data input stream to be selectively processed by the module.
+  - `d_in_1` (input, 8-bit): The second data input stream, an alternative to `d_in_0`, to be processed based on the `selection` signal.
+
+- **Outputs:**
+  - `d_o` (output, reg): The output signal carrying the processed bit from the selected input data stream.
+  - `wr_en` (output, reg): A write enable signal indicating when the `d_o` output is valid and can be written to an external memory or register.
+
+### 4. Internal Working Principle
+
+The `tbu` module operates based on a finite state machine (FSM) with states encoded in a 3-bit state register (`pstate`). The module transitions between states based on the current state and the bit values of the selected input data stream. The selection between `d_in_0` and `d_in_1` is made using the `selection` signal, buffered into `selection_buf` at each clock cycle to detect changes.
+
+Upon reset or when disabled, the module returns to its initial state (`3'b000`). The module also resets to the initial state if the `selection` signal changes from high to low, indicating a switch in the data stream being processed.
+
+In each state, the module processes a specific bit of the selected input data stream. The processing involves:
+- Determining the next state based on the current bit's value.
+- Setting the `wr_en` signal high or low, depending on whether the module is in a state to output valid data.
+- Assigning the processed bit to `d_o`, which is the output of the module.
+
+The state transitions and the logic for setting `wr_en` and `d_o` are defined explicitly for each state, making the module's operation highly dependent on its current state and the input data bit being processed.
+
+### 5. Implementation Logic Explanation
+
+The RTL module presented, named `tbu`, is designed to perform data processing based on input signals and internal state management. The module's core functionality is dictated by a combination of sequential and combinational logic, which together determine the output and internal state transitions based on the inputs and current state.
+
+#### Sequential Logic:
+
+- **State Management:** The module employs a finite state machine (FSM) with states encoded in a 3-bit register `pstate` (present state) and transitions determined by the `nstate` (next state) logic. The FSM transitions are triggered by the rising edge of the `clk` (clock) signal and the state of the `rst` (reset), `enable`, and `selection` inputs. The FSM can be reset to its initial state either by a low `rst` signal or when the `enable` signal is low. Additionally, a transition to the initial state is forced when there is a falling edge on the `selection` input (detected by comparing `selection_buf` and `selection`).
+
+- **Output Registers:** Two output registers, `d_o` and `wr_en`, hold the data output and write enable signals, respectively. These are updated on the rising edge of the `clk` signal, ensuring synchronized, stable output.
+
+#### Combinational Logic:
+
+- **State Transition Logic:** Based on the current state (`pstate`) and input signals (`selection`, `d_in_0`, `d_in_1`), the combinational logic block determines the next state (`nstate`) and the values to be loaded into `d_o_reg` and `wr_en_reg` (which are then clocked into `d_o` and `wr_en`). The logic involves a case statement that checks the current state and input conditions to decide the next state and outputs. This includes processing bits from `d_in_0` or `d_in_1` based on the `selection` input and setting `wr_en_reg` accordingly.
+
+### 6. Internally Defined Signal Descriptions
+
+- **`pstate` and `nstate` (3-bit each):** These registers are central to the FSM's operation. `pstate` holds the current state of the FSM, while `nstate` is used to compute the next state based on the current inputs and state. The FSM transitions from `pstate` to `nstate` on the rising edge of the clock, considering the reset and enable conditions.
+
+- **`d_o_reg` and `wr_en_reg`:** These are intermediate registers used to hold the next values for the outputs `d_o` and `wr_en`. Their values are determined by the combinational logic based on the current state and inputs. On the rising edge of the clock, these values are transferred to `d_o` and `wr_en`, ensuring that the outputs change synchronously with the clock.
+
+- **`selection_buf`:** This register is used to capture the previous value of the `selection` input. It is updated on every rising edge of the clock. This enables the detection of a falling edge on the `selection` input by comparing `selection_buf` and the current `selection` signal, which is used to conditionally reset the FSM to its initial state.
+
+The design intricately combines these elements to perform its intended function, with the FSM's state transitions and output logic being central to its operation. The use of intermediate registers for outputs (`d_o_reg`, `wr_en_reg`) and state transition (`nstate`) ensures that changes are synchronized with the clock, providing stable and predictable behavior.

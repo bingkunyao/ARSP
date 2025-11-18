@@ -1,0 +1,74 @@
+Module overview:
+### Module Overview
+The `FSM` module implements a finite state machine (FSM). It operates synchronously with a clock signal (`clk`) and has an asynchronous active-low reset functionality via the `rst_n` signal. The module takes a 4-bit input signal (`in_m`) and generates two outputs: a 1-bit `goods` signal and a 4-bit `out_m` signal. Based on the value of `in_m` and the current state of the FSM, the module transitions between different states and updates the output signals accordingly.
+
+### Input Signals
+- **`clk`**:
+    - **Type**: Input
+    - **Description**: The clock signal that drives the state transitions and output updates of the finite state machine. All state changes and modifications to the `goods` and `out_m` outputs occur on the rising edge of this clock signal.
+- **`rst_n`**:
+    - **Type**: Input
+    - **Description**: An asynchronous active-low reset signal. When this signal is `0` (low), it forces the state machine to reset to its initial state (`IDLE`). This reset action occurs regardless of the current state or input values, providing a way to initialize the FSM to a known starting point.
+- **`in_m`**:
+    - **Type**: Input, 4-bit wide (`[3:0]`)
+    - **Description**: The input signal that controls the state transitions and influences the values of the output signals. Different values of `in_m` within each state determine the next state the FSM will transition to and what values will be assigned to the `goods` and `out_m` outputs.
+
+### Output Signals
+- **`goods`**:
+    - **Type**: Output, registered (reg)
+    - **Description**: A 1-bit signal that serves as an indicator of a particular condition or status within the context of the state machine's operation. Its value is updated based on the current state and the value of the `in_m` input. For example, it might signify whether a certain sequence of inputs has been received correctly or if a specific operation within the state machine has been completed successfully.
+- **`out_m`**:
+    - **Type**: Output, registered (reg), 4-bit wide (`[3:0]`)
+    - **Description**: A 4-bit output signal that provides additional information related to the state machine's current state. The value assigned to `out_m` depends on the combination of the current state and the `in_m` input, and can be used to convey details such as the progress within a specific process, the result of a calculation or decision made by the state machine, or other state-dependent data.
+
+### Internal Signals and State Definitions
+- **`CS`**:
+    - **Type**: Register (reg), 5-bit wide (`[4:0]`)
+    - **Description**: Represents the current state of the finite state machine. It is updated on the rising edge of the clock when the reset condition is not active, based on the value of the `NS` (next state) signal. When the `rst_n` signal is `0` (reset), `CS` is set to the initial state `IDLE`.
+- **`NS`**:
+    - **Type**: Register (reg), 5-bit wide (`[4:0]`)
+    - **Description**: Holds the value of the next state of the finite state machine. Its value is determined through combinational logic based on the current state (`CS`) and the value of the `in_m` input. This signal guides the state transitions of the FSM.
+- **`IDLE`**:
+    - **Binary Representation**: `'b00001`
+    - **Description**: The initial state of the FSM. In this state, the module awaits specific input values on the `in_m` signal to initiate a transition to other states. It acts as a starting point and a state to which the FSM can return under certain conditions, like after a reset or when specific input sequences are completed.
+- **`S0`**:
+    - **Binary Representation**: `'b00010`
+    - **Description**: An intermediate state within the operation of the FSM. Depending on the value of the `in_m` input while in this state, the state machine can either progress to another state (e.g., `S1` or `S2`) or remain in the `S0` state. It plays a role in a sequence of operations or decision-making steps that the FSM is designed to perform.
+- **`S1`**:
+    - **Binary Representation**: `'b00100`
+    - **Description**: Another intermediate state that connects different parts of the state machine's operation. Based on the `in_m` input while in this state, the FSM can transition to `S2` or `S3`, or stay in `S1`. It helps in organizing the flow of operations and decisions based on the incoming input values.
+- **`S2`**:
+    - **Binary Representation**: `'b01000`
+    - **Description**: A state where further decisions and transitions are made based on the value of `in_m`. Depending on this input, the FSM might move to the `S3` state, return to the `IDLE` state, or remain in `S2`. It is part of the sequential logic that guides the overall behavior of the state machine.
+- **`S3`**:
+    - **Binary Representation**: `'b10000`
+    - **Description**: A state that likely represents a particular stage or condition within the operation of the FSM. Based on the `in_m` input in this state, the state machine can transition back to the `IDLE` state or generate specific output values on the `goods` and `out_m` signals, depending on the design requirements.
+
+### State Transitions and Output Updates
+1. **State Transitions (First `always` Block)**:
+The first `always` block is a synchronous sequential logic block that is sensitive to the rising edge of the `clk` signal and the falling edge of the `rst_n` signal. When the `rst_n` signal is `0` (reset), it sets the current state `CS` to the `IDLE` state. When `rst_n` is `1` (not reset), on each rising edge of the `clk` signal, the `CS` register is updated with the value of the `NS` register, thus implementing the state transitions of the finite state machine.
+2. **Next State Calculation (Second `always` Block)**:
+The second `always` block is combinational logic that determines the value of the `NS` register based on the current state (`CS`) and the value of the `in_m` input. Using a `case` statement, it defines the state transition rules:
+    - In the `IDLE` state:
+        - If `in_m` has a value of `4'd1`, the next state `NS` is set to `S0`.
+        - When `in_m` equals `4'd2`, `NS` becomes `S1`.
+        - If `in_m` is `4'd5`, the state machine remains in the `IDLE` state.
+        - For other values of `in_m`, it also stays in the `IDLE` state.
+    - In the `S0` state:
+        - With `in_m` equal to `4'd1`, a transition to `S1` occurs.
+        - If `in_m` is `4'd2`, the state machine moves to `S2`.
+        - When `in_m` has a value of `4'd5`, it returns to the `IDLE` state.
+        - For other values of `in_m`, it remains in `S0`.
+    - Similar rules apply for state transitions in the `S1`, `S2`, and `S3` states. In case of an undefined or unhandled state situation (handled by the `default` branch), the next state `NS` is set to `IDLE` to ensure that the state machine always has a defined behavior and can return to a known starting state.
+3. **Output Update (Third `always` Block)**:
+The third `always` block is another synchronous sequential logic block sensitive to `clk` and `rst_n`. When `rst_n` is `0` (reset), it initializes both the `out_m` and `goods` output signals to `0`. When `rst_n` is `1` (not reset), it uses a `case` statement based on the current state (`CS`) to update the output signals:
+    - In the `IDLE` state:
+        - The `out_m` signal is set to `0`.
+        - If `in_m` is equal to `'d5`, the `goods` signal is set to `1`; otherwise, it is set to `0`.
+    - In the `S0` state:
+        - `out_m` is initially set to `0`.
+        - If `in_m` is either `'d1` or `'d2`, both `goods` and `out_m` are set to `0`.
+        - For other values of `in_m`, `goods` is set to `1` and `out_m` is set to `'d1`.
+    - Similar logic is applied for the `S1`, `S2`, and `S3` states to update the `goods` and `out_m` signals based on the specific input values received while in those states. This allows the module to provide relevant output information that reflects the current state and the input-driven operations of the finite state machine.
+
+Overall, the `FSM` module provides a structured way to handle sequential operations and decision-making based on input signals within a digital system, with well-defined states, state transitions, and output generation mechanisms. 

@@ -1,0 +1,94 @@
+Module overview:
+### 1. Module Name
+The name of the RTL module is `aeMB_xecu`.
+
+### 2. Module Functions
+The `aeMB_xecu` module appears to be a core execution unit, possibly part of a larger processor or microcontroller design, based on the Advanced eXtensible Interface MicroBlaze (aeMB) architecture. Its primary functions include:
+
+- Performing arithmetic and logical operations.
+- Handling data memory access requests through a Data Wishbone (DWB) bus interface.
+- Managing Fast Simplex Link (FSL) interface communications.
+- Executing shift and rotate operations.
+- Multiplication and bit manipulation operations (conditional on parameter settings).
+- Managing processor status registers, including interrupt enable and breakpoint indicators.
+- Conditional execution based on branch and delay conditions.
+
+This module plays a crucial role in the execution of instructions, processing data, and interfacing with memory and other peripherals within a system.
+
+### 3. Input and Output Port Descriptions
+
+#### Inputs:
+- **rREGA, rREGB (32 bits each):** General-purpose register inputs for operations.
+- **rMXSRC, rMXTGT (2 bits each):** Multiplexer select signals for source and target operands.
+- **rRA, rRB (5 bits each):** Register addresses for source operands.
+- **rMXALU (3 bits):** ALU operation select signal.
+- **rBRA, rDLY:** Branch and delay signals for conditional execution.
+- **rALT (11 bits):** Alternate function select signal.
+- **rSTALL:** Stall signal to pause execution.
+- **rSIMM (32 bits):** Signed immediate value.
+- **rIMM (16 bits):** Immediate value for operations.
+- **rOPC (6 bits):** Operation code for instruction decoding.
+- **rRD (5 bits):** Destination register address.
+- **rDWBDI (32 bits):** Data Wishbone bus data input.
+- **rPC (30 bits):** Program counter.
+- **gclk, grst, gena:** Global clock, reset, and enable signals.
+
+#### Outputs:
+- **dwb_adr_o (30 bits):** Data Wishbone bus address output.
+- **dwb_sel_o (4 bits):** Data Wishbone bus byte select signals.
+- **fsl_adr_o (5 bits), fsl_tag_o (2 bits):** Fast Simplex Link address and tag outputs.
+- **rRESULT (32 bits):** Result of the executed operation.
+- **rDWBSEL (4 bits):** Data Wishbone bus selection signal.
+- **rMSR_IE, rMSR_BIP:** Processor status flags, including interrupt enable and breakpoint indicator.
+
+### 4. Internal Working Principle
+
+The `aeMB_xecu` module operates based on the inputs it receives, which dictate the type of operation to perform. The core of its functionality revolves around the ALU (Arithmetic Logic Unit), which is capable of performing a variety of arithmetic and logical operations based on the operation code (`rOPC`) and the selected source operands (`rMXSRC`, `rMXTGT`). The module supports conditional execution through branch and delay signals (`rBRA`, `rDLY`), allowing for more complex control flow within a program.
+
+Data memory access is managed through the Data Wishbone bus interface, with outputs for address (`dwb_adr_o`), data selection (`dwb_sel_o`), and byte selection (`rDWBSEL`). This enables the module to read from or write to memory based on the execution requirements.
+
+The Fast Simplex Link (FSL) interface is used for high-speed data transfers between the module and other components, with specific outputs for address (`fsl_adr_o`) and tag (`fsl_tag_o`), facilitating communication and synchronization.
+
+Internally, the module uses a variety of registers and multiplexers to hold and select data for operations. Conditional flags and status registers (`rMSR_IE`, `rMSR_BIP`, etc.) are updated based on the results of operations and external signals, influencing the processor's behavior in response to interrupts, breakpoints, and other system events.
+
+### 5. Implementation Logic Explanation
+
+The RTL module `aeMB_xecu` appears to be a core execution unit, possibly part of a larger microprocessor or microcontroller design, given the nature of its inputs and outputs, and the operations it performs. The module is designed to execute a variety of operations including arithmetic, logical, shift, and special register manipulations based on the inputs it receives. The operations are determined by the opcode (`rOPC`), and the operands are selected through multiplexing signals (`rMXSRC`, `rMXTGT`) which choose between registers, immediate values, or special sources like the program counter (`rPC`) or data bus (`rDWBDI`).
+
+#### Combinational Logic:
+
+- **Operand Selection:** The module selects operands for operations using `rMXSRC` and `rMXTGT` signals to choose between `rREGA`, `rREGB`, `rRESULT`, `rDWBDI`, and `rSIMM`. This allows for flexible data sourcing for operations.
+  
+- **Operation Execution:** Based on the opcode (`rOPC`), the module performs arithmetic operations (addition, subtraction), logical operations (AND, OR, XOR, NOT), and shift operations (left shift, right shift, arithmetic right shift). Special operations include multiplication and bit scan forward, controlled by parameters `MUL` and `BSF`.
+
+- **Flag Calculations:** The module computes various flags such as carry (`wADC`), and uses conditions (`fCCC`, `fSUB`, `fCMP`) to influence the behavior of arithmetic operations and flag settings.
+
+- **Special Register Manipulations:** Operations to manipulate special registers like MSR (Machine Status Register) are performed based on specific opcodes and immediate values. This includes setting interrupt enable (`rMSR_IE`), breakpoint indicator (`rMSR_BIP`), and carry flag (`rMSR_C`).
+
+#### Sequential Logic:
+
+- **Result and Flag Updates:** The module updates the result of operations (`rRESULT`) and various flags (`rMSR_C`, `rMSR_IE`, `rMSR_BIP`, `rMSR_BE`) on the rising edge of the global clock (`gclk`) if the global enable (`gena`) is asserted. This ensures synchronous operation within the system.
+
+- **Memory and FSL Interface:** The module generates addresses and select signals for data memory (`dwb_adr_o`, `dwb_sel_o`) and Fast Simplex Link (FSL) interface (`fsl_adr_o`, `fsl_tag_o`) based on operation results and specific conditions, facilitating interaction with external memory and peripherals.
+
+### 6. Internally Defined Signal Descriptions
+
+- **Operand Registers (`rOPA`, `rOPB`):** Temporary registers to hold the operands for the current operation, selected based on `rMXSRC` and `rMXTGT`.
+
+- **Result Registers (`rRES_ADD`, `rRES_LOG`, `rRES_SFT`, `rRES_MOV`, `rRES_MUL`, `rRES_BSF`):** Hold the results of arithmetic, logical, shift, move, multiply, and bit scan operations, respectively.
+
+- **Carry and Overflow Flags (`rRES_ADDC`, `rRES_SFTC`):** Temporary flags to indicate carry-out and overflow conditions from arithmetic and shift operations.
+
+- **Machine Status Register Bits (`rMSR_C`, `rMSR_IE`, `rMSR_BE`, `rMSR_BIP`):** Flags within the module that represent the carry flag, interrupt enable, bus error, and breakpoint indicator, respectively.
+
+- **Skip Flag (`fSKIP`):** A condition flag used to determine if certain operations should be skipped based on branching conditions.
+
+- **Comparison and Arithmetic Flags (`wADC`, `wCMP`):** Used in arithmetic and comparison operations to indicate carry and comparison results.
+
+- **Multiplication and Bit Scan Forward Results (`xRES_MUL`, `xBSRL`, `xBSRA`, `xBSLL`):** Intermediate results for multiplication and bit scan operations, updated on every cycle and finalized upon the execution stage.
+
+- **Data Memory and FSL Interface Signals (`dwb_adr_o`, `dwb_sel_o`, `fsl_adr_o`, `fsl_tag_o`):** Outputs for interfacing with data memory and FSL peripherals, derived from operation results and specific control logic.
+
+- **Temporary Registers for MSR Updates (`xMSR_C`, `xMSR_IE`, `xMSR_BE`, `xMSR_BIP`):** Hold the next state values for the MSR flags, updated based on current operation results and conditions.
+
+This module encapsulates a wide range of functionalities typical of an execution unit within a processor, handling arithmetic, logical, and control operations, interfacing with memory, and managing special registers and flags. Its design reflects a balance between flexibility in operation and efficiency in execution, tailored to the specific requirements of the encompassing system. 

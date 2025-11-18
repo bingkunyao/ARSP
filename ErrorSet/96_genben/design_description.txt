@@ -1,0 +1,79 @@
+Module overview:
+ ### 1. Module Name
+
+The name of this RTL module is `bresenham_line`.
+
+### 2. Module Functions
+
+The `bresenham_line` module implements the Bresenham's line algorithm in hardware. This algorithm is widely used for drawing straight lines on a grid (such as a pixelated display) in a highly efficient manner. The primary function of this module is to calculate the set of pixels that best approximates a straight line between two given points. This module is designed to be integrated into graphics processing systems, where it can be used for rendering lines on screen with minimal computational resources.
+
+Key objectives include:
+- Determining whether the line's major axis is in the X or Y direction (x_major_o).
+- Calculating the next pixel coordinates (major_o, minor_o) to be drawn as part of the line.
+- Signaling when the module is busy calculating or ready for new input (busy_o).
+- Indicating when a calculated pixel coordinate is valid and should be drawn (valid_o).
+
+### 3. Input and Output Port Descriptions
+
+#### Inputs:
+- `clk_i`: Clock input. The module operates on the rising edge of this clock.
+- `rst_i`: Reset input. A high signal on this input resets the module.
+- `pixel0_x_i`, `pixel0_y_i`: Signed fixed-point inputs specifying the starting point (x0, y0) of the line.
+- `pixel1_x_i`, `pixel1_y_i`: Signed fixed-point inputs specifying the ending point (x1, y1) of the line.
+- `draw_line_i`: Input signal that initiates the line drawing process when high.
+- `read_pixel_i`: Input signal that allows the module to output the next pixel in the line when high.
+
+#### Outputs:
+- `busy_o`: Output signal that indicates the module is currently processing and not ready to accept new inputs.
+- `x_major_o`: Output signal that indicates whether the major axis of the line is in the X direction (high) or Y direction (low).
+- `major_o`, `minor_o`: Signed outputs representing the current pixel coordinates to be drawn, based on the major and minor axes determined by `x_major_o`.
+- `valid_o`: Output signal that indicates the current pixel coordinates (`major_o`, `minor_o`) are valid and should be drawn.
+
+### 4. Internal Working Principle
+
+The module operates in a state machine with four states: `wait_state`, `line_prep_state`, `line_state`, and `raster_state`. 
+
+- **wait_state**: The module waits for the `draw_line_i` signal to initiate the line drawing process.
+- **line_prep_state**: Prepares the initial conditions for drawing the line, including determining the major and minor axes, calculating the differences (`xdiff`, `ydiff`) between the start and end points, and setting up initial values for the Bresenham algorithm.
+- **line_state**: Sets up the initial pixel (`major_o`, `minor_o`) based on the major and minor axes determined in the previous state.
+- **raster_state**: Iteratively calculates the next pixel in the line using the Bresenham algorithm. It updates `major_o` and `minor_o` based on the accumulated error (`eps`) and the slope of the line. The `valid_o` signal is used to indicate when a new pixel coordinate is ready.
+
+The Bresenham algorithm's core principle is to decide the next pixel to draw based on the error accumulated from the previous step. This error (`eps`) is compared against the delta of the minor axis (`delta_minor`) to decide whether to increment the minor axis coordinate along with the major axis coordinate. The algorithm efficiently approximates a straight line by minimizing the distance between the theoretical line and the grid of pixels.
+
+### 5. Implementation Logic Explanation
+
+The RTL module presented implements the Bresenham's line drawing algorithm in hardware. This algorithm is widely used for drawing lines on a grid (such as a screen) where the grid locations are discrete, and the line needs to be approximated by selecting the grid points that best approximate a straight line between two points. The module is designed to operate in a digital system with a clock signal (`clk_i`) and can be reset (`rst_i`). It takes as inputs the coordinates of two points (`pixel0_x_i`, `pixel0_y_i`, `pixel1_x_i`, `pixel1_y_i`) and a signal to start the line drawing operation (`draw_line_i`). It outputs the coordinates of the points on the line (`major_o`, `minor_o`) one at a time, along with a validity signal (`valid_o`) to indicate when the coordinates are valid. The module also indicates whether it is busy drawing a line (`busy_o`) and whether the major axis of the line is in the x-direction (`x_major_o`).
+
+#### Logic Flow:
+
+1. **Initialization and State Transition**: The module operates in a finite state machine (FSM) with four states: `wait_state`, `line_prep_state`, `line_state`, and `raster_state`. The FSM transitions from waiting for a `draw_line_i` signal, preparing the line drawing parameters, setting up initial conditions for drawing, and then rasterizing the line point by point.
+
+2. **Line Preparation**: Upon receiving a `draw_line_i` signal, the module calculates the differences in x and y coordinates (`xdiff`, `ydiff`) to determine the slope and direction of the line. It then decides whether the line's major axis is in the x or y direction (`x_major_o`) and calculates the major and minor deltas (`delta_major`, `delta_minor`) for the line drawing algorithm.
+
+3. **Rasterization**: In the rasterization state, the module iteratively calculates the next point on the line to draw, based on the Bresenham's algorithm. It uses an error term (`eps`) to decide when to increment the minor axis coordinate along with the major axis coordinate. The algorithm ensures that the line is drawn as closely as possible to the ideal line between the two endpoints.
+
+4. **Output Generation**: For each point calculated, the module outputs the coordinates (`major_o`, `minor_o`) and sets the `valid_o` signal when these coordinates are valid. The `busy_o` signal indicates that the module is actively processing the line drawing operation.
+
+### 6. Internally Defined Signal Descriptions
+
+- **`xdiff`, `ydiff`**: These signals store the absolute differences in x and y coordinates between the two endpoints. They are used to determine the slope and direction of the line.
+
+- **`left_pixel_x`, `left_pixel_y`, `right_pixel_x`, `right_pixel_y`**: These registers are used to store the coordinates of the endpoints, reordered if necessary so that drawing proceeds from left to right or bottom to top, depending on the major axis.
+
+- **`delta_major`, `delta_minor`**: These signals store the differences in the major and minor axes, which are used in the line drawing calculations to determine when to increment the minor axis coordinate.
+
+- **`minor_slope_positive`**: A boolean flag indicating whether the slope of the line in the minor axis direction is positive or negative.
+
+- **`major_goal`**: This register holds the target value for the major axis coordinate, indicating when the line drawing should stop.
+
+- **`eps`**: The error term used in Bresenham's algorithm to decide when to increment the minor axis coordinate. It is adjusted each time a point is drawn.
+
+- **`eps_delta_minor`**: A calculated value used in the decision process for incrementing the minor axis coordinate, based on the current error term and the minor delta.
+
+- **`state`**: A register holding the current state of the FSM, controlling the operation of the module.
+
+- **`previously_outside_screen`**: A flag used to track whether the previously calculated point was outside the drawable area, affecting the validity of subsequent points.
+
+- **`is_inside_screen`**: A calculated signal indicating whether the current point is within the drawable area.
+
+This module encapsulates the Bresenham's line drawing algorithm in a hardware description, allowing for efficient line drawing in digital systems. The use of an FSM, along with carefully defined internal signals, enables precise control over the line drawing process, ensuring that the algorithm's steps are correctly followed and that the output points accurately represent the desired line.

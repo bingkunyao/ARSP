@@ -1,0 +1,80 @@
+Module overview:
+ ### 1. Module Name
+
+The name of this RTL module is `a23_wishbone`.
+
+### 2. Module Functions
+
+The `a23_wishbone` module is designed to interface with a Wishbone bus, a popular bus architecture used in embedded systems for connecting different components such as CPUs, memory controllers, and peripherals. This module acts as a bridge or adapter, facilitating communication between a core logic (which could be a processor or any other logic block requiring access to a shared bus) and the Wishbone bus. Its primary functions include:
+
+- Handling read and write requests from the core logic to the bus.
+- Managing byte enables for partial writes.
+- Supporting exclusive access control for certain operations.
+- Implementing a write buffer to manage write operations efficiently.
+- Operating in different states to manage the bus access and data transfer phases, including handling burst transfers and waiting for acknowledgments from the bus.
+
+### 3. Input and Output Port Descriptions
+
+#### Inputs:
+
+- `i_clk`: Clock input. Synchronizes the module's operations.
+- `i_select`: Enables the module when high, indicating a request is being made by the core logic.
+- `i_write_data [31:0]`: The data to be written to the bus when a write operation is requested.
+- `i_write_enable`: When high, indicates a write operation; when low, indicates a read operation.
+- `i_byte_enable [3:0]`: Specifies which bytes of the data bus are valid for write operations.
+- `i_data_access`: Not directly used in the provided code, potentially reserved for future use or specific implementations.
+- `i_exclusive`: Indicates an exclusive access request, used for operations that require unique access to a resource.
+- `i_address [31:0]`: The bus address for the read or write operation.
+- `i_cache_req`: Indicates if the access request is coming from a cache controller.
+- `i_wb_dat [31:0]`: Data input from the Wishbone bus, used for read operations.
+- `i_wb_ack`: Acknowledgment signal from the Wishbone bus, indicating that the current operation has been completed.
+- `i_wb_err`: Error signal from the Wishbone bus, indicating an error in the current operation.
+
+#### Outputs:
+
+- `o_stall`: Indicates that the core logic should stall, as the module is currently busy handling a previous request.
+- `o_wb_adr [31:0]`: Address output to the Wishbone bus for read/write operations.
+- `o_wb_sel [3:0]`: Byte select output for the Wishbone bus, indicating which bytes are valid in a write operation.
+- `o_wb_we`: Write enable signal for the Wishbone bus; high for write operations, low for read operations.
+- `o_wb_dat [31:0]`: Data output to the Wishbone bus for write operations.
+- `o_wb_cyc`: Cycle signal for the Wishbone bus, indicating the start and duration of a bus cycle.
+- `o_wb_stb`: Strobe signal for the Wishbone bus, indicating an active transfer.
+
+### 4. Internal Working Principle
+
+The `a23_wishbone` module operates based on a finite state machine (FSM) with states including idle, burst transfers, and waiting for acknowledgment. The FSM manages the transitions between different phases of bus access and data transfer, ensuring that operations are executed in the correct order and adhering to the Wishbone protocol.
+
+- **Idle State (WB_IDLE):** The module waits for a start access condition. Upon receiving a request, it sets up the bus cycle, determines whether the operation is a read or write, and moves to the appropriate state to handle the request.
+- **Burst States (WB_BURST1, WB_BURST2, WB_BURST3):** These states manage burst read operations from the bus, incrementing the address and waiting for acknowledgments for each part of the burst.
+- **Wait for Acknowledgment (WB_WAIT_ACK):** In this state, the module waits for an acknowledgment from the bus that the current operation (read or write) has been completed. Once received, it transitions back to the idle state or continues with the next part of a burst read.
+
+### 5. Implementation Logic Explanation
+
+The `a23_wishbone` module is designed to interface with a Wishbone bus, a popular bus architecture for connecting different components in a microcontroller system or SoC (System on Chip). This module manages read and write operations over the Wishbone bus, handling core and cache requests with optional exclusive access and byte-wise data manipulation capabilities. The module operates under a clocked environment (`i_clk`) and processes signals to control and respond to data transactions.
+
+#### Combinational Logic:
+
+- **Signal Assignments**: Various wire assignments (`read_ack`, `o_stall`, `core_read_request`, `core_write_request`, `cache_read_request`, `cache_write_request`, `wb_wait`, `start_access`, `byte_enable`) are used to determine the current operation's nature and status. These signals are derived from the input signals and the module's internal state, dictating the flow of operations such as whether to initiate a data access, stall the operation, or acknowledge a read/write request.
+- **Byte Address Calculation**: The module calculates the byte address for data transactions based on the byte enable signals. This calculation is crucial for operations that do not involve all bytes of a word, allowing for selective read/write operations at the byte level.
+
+#### Sequential Logic:
+
+- **State Machine**: The core of the module's operation is a finite state machine (FSM) with states including `WB_IDLE`, `WB_BURST1`, `WB_BURST2`, `WB_BURST3`, and `WB_WAIT_ACK`. This FSM controls the progression of read and write operations, handling burst transfers, waiting for acknowledgments, and managing exclusive access.
+- **Write Buffer Management**: The module employs a write buffer mechanism (`wbuf_addr_r`, `wbuf_sel_r`, `wbuf_busy_r`) to hold write operations when the Wishbone bus is busy. This mechanism ensures that write requests are not lost and can be processed once the bus is available.
+- **Signal Updates**: On each clock cycle, the module updates its internal signals and outputs based on the current state and input signals. This includes managing the Wishbone bus control signals (`o_wb_stb`, `o_wb_cyc`, `o_wb_sel`, `o_wb_we`, `o_wb_adr`, `o_wb_dat`) to initiate and complete transactions.
+
+### 6. Internally Defined Signal Descriptions
+
+- **wishbone_st**: A register that holds the current state of the FSM, guiding the module through different phases of a transaction.
+- **servicing_cache**: A register indicating whether the module is currently servicing a cache request. This affects the stall logic and the FSM's progression.
+- **exclusive_access**: A register that, when set, indicates that the current transaction has requested exclusive access, affecting how the `o_wb_cyc` signal is managed.
+- **wbuf_addr_r, wbuf_sel_r, wbuf_busy_r**: Registers that constitute the write buffer, holding the address, byte select signals, and busy status of a pending write operation.
+- **core_read_request, core_write_request**: Signals indicating whether the current operation is a core read or write request.
+- **cache_read_request, cache_write_request**: Signals indicating whether the current operation is a cache read or write request.
+- **start_access**: A signal that determines if the conditions are met to start a new access on the Wishbone bus.
+- **byte_enable**: A signal derived from the write buffer or input byte enable signals, used to specify which bytes of the data word are active for the current operation.
+- **read_ack**: A signal indicating that a read acknowledgment has been received from the Wishbone bus.
+- **wait_write_ack**: A signal indicating that the module is waiting for an acknowledgment of a write operation.
+- **wb_wait**: A signal indicating that the module is waiting for any acknowledgment from the Wishbone bus.
+
+This module's design showcases a sophisticated approach to managing data transactions over the Wishbone bus, with careful consideration for concurrency, data integrity, and system responsiveness.
