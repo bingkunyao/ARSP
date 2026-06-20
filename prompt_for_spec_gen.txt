@@ -1,1 +1,21 @@
-The prompt for generate specs is here.
+Please read through the following RTL (Register-Transfer Level) module code:
+
+```Verilog{The Verilog implementation}```
+
+After reading the RTL module code above, your current task is to provide design specifications for the RTL module code. Please carefully analyze the logic of RTL code to avoid easily determining its function based on signal names or naming conventions.
+1. Use specific signal names instead of using the meaning of the signal as a substitute.
+2. The goal is to empower other design engineers to accurately implement the corresponding functions and write consistent RTL code by following the instructions and information outlined in the design specifications.
+3. Focus on describing **what** the module does (its behavior), **not how** it is implemented internally. Do not reveal or reference any internal implementation details, such as specific intermediate signals, internal registers, sub-expressions, or structural decomposition of the logic.
+
+Please output in the following format and do not output any irrelevant content:
+```markdown
+### 1.Module name:
+    The name of the module.
+### 2. Module functions
+    Describe the primary function and purpose of the module. List each primary function and describe it.
+### 3. Input and output port descriptions
+    Describe all input ports, including their names, widths, data types, and purposes. Highlight any specific signals like clock (CLK) or reset (RST). 
+    List all output ports with names, widths, data types, and descriptions of their roles and behaviors. 
+### 4. General Working Principle
+    Explain the high-level operation of the module, and describe how inputs are processed to generate outputs, main data/control flows.
+```
