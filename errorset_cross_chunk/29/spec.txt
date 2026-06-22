@@ -1,0 +1,100 @@
+Module overview:
+ ### 1. Module Name
+
+The name of the RTL module is `lsu_asi_decode`.
+
+### 2. Module Functions
+
+The `lsu_asi_decode` module is designed to decode Address Space Identifier (ASI) codes for a Load Store Unit (LSU) within a processor. ASIs are used in processors to specify different types of memory accesses, such as user vs. supervisor mode, cacheable vs. non-cacheable, and so on. This module takes an 8-bit ASI code as input and generates various control signals that indicate the type of memory access requested. These control signals are used by the LSU to perform the memory operation correctly according to the specified ASI properties.
+
+The primary functions and objectives of the `lsu_asi_decode` module include:
+
+- Identifying different types of memory access requests (e.g., primary, secondary, nucleus, etc.).
+- Determining the endianness of the memory access.
+- Identifying accesses that should bypass the cache or the TLB (Translation Lookaside Buffer).
+- Detecting special types of accesses such as atomic operations, block operations, and diagnostic accesses.
+- Generating a signal to indicate whether the ASI code is recognized or not.
+
+This module plays a crucial role in the memory access operations of the processor, ensuring that each access is performed with the correct attributes as specified by the ASI code.
+
+### 3. Input and Output Port Descriptions
+
+#### Input Ports
+
+- `asi_d [7:0]`: 8-bit input specifying the Address Space Identifier (ASI) code. This code determines the type of memory access and its attributes.
+
+#### Output Ports
+
+- `asi_internal_d`: Indicates whether the ASI is for internal use.
+- `nucleus_asi_d`: Indicates a nucleus (privileged) memory access.
+- `primary_asi_d`: Indicates a primary memory access.
+- `secondary_asi_d`: Indicates a secondary memory access.
+- `lendian_asi_d`: Indicates if the memory access is little-endian.
+- `nofault_asi_d`: Indicates a no-fault memory access.
+- `quad_asi_d`: Indicates a quad-word memory access.
+- `binit_quad_asi_d`: Indicates a block-initiated quad-word memory access.
+- `dcache_byp_asi_d`: Indicates a data cache bypass.
+- `tlb_lng_ltncy_asi_d`: Indicates a TLB long latency access.
+- `tlb_byp_asi_d`: Indicates a TLB bypass.
+- `as_if_user_asi_d`: Indicates an AS IF USER memory access.
+- `atomic_asi_d`: Indicates an atomic memory access.
+- `blk_asi_d`: Indicates a block memory access.
+- `dc_diagnstc_asi_d`: Indicates a data cache diagnostic access.
+- `dtagv_diagnstc_asi_d`: Indicates a data tag and valid bit diagnostic access.
+- `wr_only_asi_d`: Indicates a write-only memory access.
+- `rd_only_asi_d`: Indicates a read-only memory access.
+- `unimp_asi_d`: Indicates an unimplemented ASI.
+- `ifu_nontlb_asi_d`: Indicates an IFU non-TLB memory access.
+- `recognized_asi_d`: Indicates whether the ASI code is recognized.
+- `ifill_tlb_asi_d`: Indicates an instruction fill TLB access.
+- `dfill_tlb_asi_d`: Indicates a data fill TLB access.
+- `rd_only_ltlb_asi_d`: Indicates a read-only little TLB access.
+- `wr_only_ltlb_asi_d`: Indicates a write-only little TLB access.
+- `phy_use_ec_asi_d`: Indicates physical use EC memory access.
+- `phy_byp_ec_asi_d`: Indicates physical bypass EC memory access.
+- `mmu_rd_only_asi_d`: Indicates an MMU read-only memory access.
+- `intrpt_disp_asi_d`: Indicates an interrupt dispatch.
+- `dmmu_asi58_d`: Indicates a DMMU ASI 58 access.
+- `immu_asi50_d`: Indicates an IMMU ASI 50 access.
+
+### 4. Internal Working Principle
+
+The `lsu_asi_decode` module operates on the principle of decoding the 8-bit ASI code (`asi_d`) to generate control signals that guide the LSU in handling memory accesses. The decoding process involves comparing the ASI code against predefined values to determine the type of access and its attributes. This is achieved through a series of conditional checks and assignments within the module.
+
+For each type of memory access or attribute (e.g., nucleus access, little-endian, cache bypass), there is a corresponding output signal. The module sets these signals based on the input ASI code. For example, if the ASI code indicates a nucleus access, the `nucleus_asi_d` signal is set. Similarly, if the ASI code specifies a memory access that should bypass the cache, the `dcache_byp_asi_d` signal is set.
+
+The module also includes logic to identify unimplemented ASI codes and generate a signal (`unimp_asi_d`) accordingly. This ensures that the system can handle unrecognized or unsupported ASI codes gracefully.
+
+### 5. Implementation Logic Explanation
+
+The RTL module `lsu_asi_decode` is designed to decode Address Space Identifiers (ASIs) for a processor's Load Store Unit (LSU). ASIs are used in processors to specify the type of memory access or operation being performed, allowing for different behaviors such as bypassing caches, accessing special registers, or handling specific types of data (e.g., little-endian or atomic operations). This module takes an 8-bit ASI code as input (`asi_d`) and generates a series of output signals that indicate the characteristics and operations associated with that ASI.
+
+The module is purely combinational, with no sequential elements (e.g., flip-flops or latches), meaning its outputs are directly determined by its current inputs without any internal state. The logic is implemented using a series of `assign` statements, each of which defines a specific output signal based on the input ASI code. These statements often use logical operations (AND, OR, NOT) to check for specific ASI values or ranges of values.
+
+The decoding logic can be broadly categorized into several groups based on the type of operation or characteristic they signify:
+
+- **Type of Access**: Determines whether the ASI is for normal memory access, bypassing caches, accessing special registers, etc.
+- **Access Characteristics**: Identifies special characteristics like endianness (big or little), fault behavior (nofault), and whether the access is atomic.
+- **Memory Region**: Indicates whether the access is to normal memory, nucleus (kernel) space, or IO space.
+- **TLB Operations**: Identifies ASIs related to TLB (Translation Lookaside Buffer) operations, such as filling or diagnosing TLBs.
+- **Diagnostic and Special Operations**: Flags ASIs used for diagnostic purposes or accessing special hardware features.
+
+### 6. Internally Defined Signal Descriptions
+
+- **`asi_internal_d`**: Indicates whether the ASI is for internal processor operations. This includes accesses to internal registers, MMU operations, and other processor-specific functions.
+- **`nucleus_asi_d`**: Flags ASIs that access nucleus (kernel) memory space, which is typically protected and not accessible from user space.
+- **`primary_asi_d`, `secondary_asi_d`**: Differentiate between primary and secondary ASI spaces, which can be used for different purposes or modes of operation in the processor.
+- **`lendian_asi_d`**: Indicates that the ASI specifies little-endian memory access, as opposed to the default big-endian.
+- **`nofault_asi_d`**: Specifies ASIs that should not cause faults, used for certain types of speculative or diagnostic accesses.
+- **`quad_asi_d`**: Flags ASIs that operate on quad-word (typically 64-bit) data types.
+- **`dcache_byp_asi_d`, `tlb_byp_asi_d`**: Indicate ASIs that bypass the data cache or TLB, accessing memory directly.
+- **`atomic_asi_d`**: Specifies ASIs that perform atomic operations, which are operations that complete entirely without interruption.
+- **`blk_asi_d`**: Indicates block operations, which operate on multiple data items in a single operation.
+- **`dc_diagnstc_asi_d`, `dtagv_diagnstc_asi_d`**: Flag ASIs used for diagnostic purposes, specifically for the data cache and data tag view.
+- **`wr_only_asi_d`, `rd_only_asi_d`**: Specify ASIs that are write-only or read-only, respectively.
+- **`unimp_asi_d`**: Indicates ASIs that are unimplemented and should typically result in an exception if used.
+- **`recognized_asi_d`**: A summary signal that is high if the ASI is recognized as one of the types decoded by this module.
+
+The internal signals like `quad_ldd_real`, `asi_if_user_prim_d`, `nucleus_asi_exact_d`, etc., are intermediate signals used to simplify the logic expressions for the output signals. They represent specific conditions or groups of ASIs to make the overall logic more readable and maintainable.
+
+This module serves as a critical component in the processor's memory access path, ensuring that each access is performed with the correct behavior and permissions as dictated by the ASI code.

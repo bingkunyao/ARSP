@@ -1,0 +1,93 @@
+Module overview:
+ ### 1. Module Name
+
+The name of this RTL module is `rtclight`.
+
+### 2. Module Functions
+
+The `rtclight` module serves as a multifunctional timekeeping and control unit within a broader digital system, likely intended for embedded or IoT applications. Its primary functions include:
+
+- **Clock Management:** It maintains a real-time clock (RTC) that tracks time in hours, minutes, and seconds.
+- **Timer Functionality:** It includes a countdown timer that can be set and will trigger an interrupt upon reaching zero.
+- **Stopwatch Functionality:** It features a stopwatch capable of counting elapsed time.
+- **Alarm Functionality:** It allows setting an alarm time, which triggers an interrupt when the real-time clock matches the preset alarm time.
+- **Clock Speed Adjustment:** It provides the capability to adjust the speed at which the real-time clock operates, allowing for calibration or testing purposes.
+
+These functions make the `rtclight` module versatile for applications requiring precise timekeeping and scheduling capabilities, such as in automation systems, time-based control applications, or even simple embedded clocks and timers.
+
+### 3. Input and Output Port Descriptions
+
+#### Inputs:
+
+- `i_clk`: The input clock signal driving the module's operation.
+- `i_wb_cyc`, `i_wb_stb`, `i_wb_we`: Control signals for the Wishbone bus interface, indicating cycle valid, strobe, and write enable, respectively.
+- `i_wb_addr[2:0]`: A 3-bit address input selecting the internal register or function to access.
+- `i_wb_data[31:0]`: A 32-bit data input used for setting values in the module's registers based on the selected address.
+
+#### Outputs:
+
+- `o_data[31:0]`: A 32-bit output data bus that provides the current value of the selected internal register or function.
+- `o_interrupt`: A signal that indicates an interrupt request, triggered by either the timer reaching zero or the alarm time being matched.
+- `o_ppd`: A signal indicating whether the real-time clock has progressed by one day.
+
+### 4. Internal Working Principle
+
+The `rtclight` module operates based on a series of counters and registers that are incremented or decremented with each clock cycle, depending on their function (e.g., real-time clock, timer, stopwatch). The core principles guiding its operation include:
+
+- **Clock Management:** Utilizes a counter (`ck_counter`) incremented by a configurable speed value (`ckspeed`) to simulate the passage of time. The real-time clock (`clock`) is updated based on overflow conditions of this counter, simulating seconds, minutes, and hours.
+- **Timer Functionality:** Counts down from a preset value (`timer`) towards zero, triggering an interrupt (`tm_int`) when zero is reached. It can be paused and resumed.
+- **Stopwatch Functionality:** Counts up from zero, tracking elapsed time as long as it is enabled.
+- **Alarm Functionality:** Compares the current real-time clock value with a preset alarm time (`alarm_time`), triggering an interrupt (`al_int`) when they match.
+- **Clock Speed Adjustment:** Allows dynamic adjustment of the `ckspeed` value, which directly affects how fast the real-time clock and related functions operate.
+
+### 5. Implementation Logic Explanation
+
+The RTL module presented, named `rtclight`, is designed to function as a multifaceted timekeeping device, incorporating features such as a clock, stopwatch, timer, and alarm, with the capability to adjust clock speed and generate interrupts. The module interfaces with a Wishbone bus, accepting commands and data for configuration and control, and outputs data and interrupt signals based on its internal state and operations. The core of its functionality is driven by the `i_clk` input signal, which serves as the heartbeat for all time-related operations.
+
+#### Combinational and Sequential Logic:
+
+- **Combinational Logic:** This is primarily used for decoding the address (`i_wb_addr`) to select the appropriate functionality (clock, timer, stopwatch, alarm, clock speed adjustment) through signals like `ck_sel`, `tm_sel`, `sw_sel`, `al_sel`, and `sp_sel`. It also determines the operational state of the timer (`tm_stopped`, `tm_running`, `tm_alarm`) and the running state of the stopwatch (`sw_running`). Combinational logic is also employed to generate the `o_interrupt` and `o_ppd` signals based on internal conditions.
+
+- **Sequential Logic:** The module heavily relies on sequential logic to track and update time for the clock, stopwatch, and timer functionalities. This is evident in the use of counters (`ck_counter`, `timer`, `stopwatch`) that increment or decrement based on the `i_clk` signal. The clock functionality, for instance, uses a combination of a counter (`ck_counter`) and carry logic (`ck_carry`) to increment the time, with additional logic to handle the transition between seconds, minutes, and hours. Similarly, the timer and stopwatch functionalities use counters that are incremented or decremented, with logic to handle underflow and overflow conditions.
+
+#### Key Functional Blocks:
+
+- **Clock:** Utilizes a counter (`ck_counter`) to simulate the passage of time, incrementing the `clock` register. It handles the transition of seconds, minutes, and hours, and can be set via the Wishbone interface.
+
+- **Timer:** Counts down from a set value (`timer` register) and generates an interrupt upon reaching zero. It can be started, stopped, and reset via the Wishbone interface.
+
+- **Stopwatch:** Functions similarly to the timer but counts up, tracking elapsed time. It can be started, stopped, and reset via the Wishbone interface.
+
+- **Alarm:** Can be set to a specific time (`alarm_time`), and when the clock matches this time, an interrupt is generated if enabled (`al_enabled`).
+
+- **Clock Speed Adjustment:** Allows for the adjustment of the clock's speed (`ckspeed`) to simulate faster or slower passage of time.
+
+### 6. Internally Defined Signal Descriptions
+
+- **`ck_sel`, `tm_sel`, `sw_sel`, `sp_sel`, `al_sel`:** These signals are used to decode the address provided via the Wishbone interface to select the appropriate functionality (clock, timer, stopwatch, alarm, clock speed adjustment).
+
+- **`ck_counter`, `ck_carry`:** Used in the clock functionality to count time and indicate when a second has passed, respectively.
+
+- **`clock`:** A register that holds the current time in a 24-hour format, represented as HHMMSS in BCD format.
+
+- **`timer`:** A register used by the timer functionality to count down from a set value. It includes flags to indicate the timer's running state and alarm condition.
+
+- **`stopwatch`:** A register used by the stopwatch functionality to count up, tracking elapsed time.
+
+- **`alarm_time`:** Holds the time at which the alarm is set to trigger.
+
+- **`al_enabled`, `al_tripped`:** Flags used to control the alarm functionality, indicating whether the alarm is enabled and whether it has been triggered.
+
+- **`ck_pps`, `ck_ppm`, `ck_pph`, `ck_ppd`:** Flags indicating the passage of a second, minute, hour, and day, respectively, used within the clock functionality.
+
+- **`tm_pps`, `tm_ppm`, `tm_int`:** Flags used within the timer functionality to indicate the passage of a second, minute, and the timer interrupt condition.
+
+- **`sw_pps`, `sw_ppm`, `sw_pph`:** Flags used within the stopwatch functionality to indicate the passage of a second, minute, and hour, respectively.
+
+- **`ckspeed`:** A register that allows for the adjustment of the clock's speed, effectively simulating a faster or slower passage of time.
+
+- **`o_interrupt`:** An output signal that indicates an interrupt condition, generated by either the timer or the alarm.
+
+- **`o_ppd`:** An output signal indicating the passage of a day, used to signal external components or systems.
+
+This module demonstrates a sophisticated use of both combinational and sequential logic to implement a multifunctional timekeeping device, with careful consideration given to the handling of time-related operations and interactions via a standard bus interface.

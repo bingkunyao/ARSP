@@ -1,0 +1,93 @@
+Module overview:
+ ### 1. Module Name
+
+The name of the RTL module is `adapter`.
+
+### 2. Module Functions
+
+The `adapter` module serves as an interface between two subsystems operating at potentially different clock domains, indicated by `ckmb` and `ckdr`. It facilitates data read and write operations across these domains by adapting address, data, and control signals accordingly. The primary functions include:
+
+- Handling read and write requests from an IO interface, translating these requests into signals suitable for a secondary interface (possibly a memory or another IO interface).
+- Managing data and address translation, including data width adaptation from a 32-bit IO interface to a 256-bit secondary interface.
+- Generating appropriate mask signals for write operations based on byte enable inputs.
+- Synchronizing read and write operations across different clock domains.
+- Providing ready signals to indicate the completion of read and write operations.
+
+### 3. Input and Output Port Descriptions
+
+#### Inputs:
+
+- `ckmb`: Clock input for the module's primary operations.
+- `ckdr`: Clock input for operations related to the secondary domain.
+- `reset`: Asynchronous reset signal.
+- `IO_Addr_Strobe`: Strobe signal indicating an address is being provided for a read or write operation.
+- `IO_Read_Strobe`: Strobe signal indicating a read operation.
+- `IO_Write_Strobe`: Strobe signal indicating a write operation.
+- `IO_Address`: 32-bit address for the current IO operation.
+- `IO_Byte_Enable`: 4-bit signal indicating which bytes of the IO data are valid for write operations.
+- `IO_Write_Data`: 32-bit data to be written during write operations.
+- `page`: 4-bit page number, extending the address space.
+- `dbg_out`: 3-bit debug output, purpose within the module not explicitly defined.
+- `srdat`: 256-bit data read from the secondary interface.
+- `srdy`: Signal indicating readiness of data from the secondary interface.
+
+#### Outputs:
+
+- `srd`: Signal to initiate a read operation on the secondary interface.
+- `swr`: Signal to initiate a write operation on the secondary interface.
+- `sa`: 29-bit address for the secondary interface, derived from `IO_Address` and `page`.
+- `swdat`: 256-bit data to be written to the secondary interface.
+- `smsk`: 32-bit mask for write operations on the secondary interface.
+- `IO_Ready`: Signal indicating the module is ready for a new IO operation.
+- `IO_Read_Data`: 32-bit data read from the secondary interface, to be passed back to the IO interface.
+
+### 4. Internal Working Principle
+
+The `adapter` module operates based on the following principles:
+
+- **Clock Domain Handling**: The module operates across two clock domains (`ckmb` and `ckdr`), with synchronization mechanisms in place to ensure data integrity and control signal coherence across these domains.
+- **Data and Address Translation**: Upon receiving a write strobe and address strobe, the module translates the 32-bit `IO_Write_Data` into a 256-bit format (`swdat`) and generates a corresponding mask (`smsk`) based on the `IO_Byte_Enable` signal. The address (`IO_Address` and `page`) is also translated to fit the secondary interface's requirements.
+- **Read and Write Operation Management**: The module sets up read or write operations based on the strobes received. It uses internal state machines (managed by `read`, `write`, `rdy1`, and `rdy2` registers) to track the progress of these operations across clock domains, ensuring that operations are initiated and completed correctly.
+- **Signal Synchronization and Output Generation**: The module synchronizes the readiness of data (`srdy`) from the secondary interface with the IO interface's readiness signal (`IO_Ready`), allowing for seamless data transfer between the two. It also selects the appropriate slice of the 256-bit data (`srdat`) based on the address for read operations, aligning it with the expected 32-bit `IO_Read_Data` format.
+
+### 5. Implementation Logic Explanation
+
+The RTL module named `adapter` serves as an interface between two distinct clock domains, represented by `ckmb` and `ckdr`, and facilitates data communication between an IO interface and a memory subsystem. The module is designed to handle both read and write operations, indicated by `IO_Read_Strobe` and `IO_Write_Strobe` signals, respectively. The core functionality of this module is to adapt IO operations into memory operations, which involves address translation, data masking, and data buffering.
+
+#### Combinational Logic:
+
+- **Data Masking and Write Data Preparation**: The module generates a write data mask (`smsk`) based on the `IO_Byte_Enable` signal, which indicates the valid byte lanes for the write operation. This mask is used to protect parts of the data word that are not intended to be overwritten. The write data (`swdat`) is prepared by packing the `IO_Write_Data` into a 256-bit register (`wdat`) based on the address offset (`IO_Address[4:2]`).
+
+- **Address Translation**: The address for memory operations (`sa`) is derived by concatenating the `page` signal with the upper bits of the `IO_Address`, effectively translating the IO address space into the memory address space.
+
+- **Signal Assignments**: Several signals are directly assigned based on internal states or inputs, such as `IO_Read_Data` which is assigned from an internal register `rdat`, and control signals `srd` and `swr` which are set based on the read and write operation flags.
+
+#### Sequential Logic:
+
+- **Write Data and Mask Generation**: On the rising edge of `ckmb`, when both address strobe and write strobe are asserted, the module selects a segment of the `wdat` register to store the incoming `IO_Write_Data` and simultaneously generates the corresponding data mask. This operation is sensitive to the specific byte offset within the 256-bit word, as indicated by the address.
+
+- **Address Latching**: Also on the rising edge of `ckmb`, if an address strobe is detected, the module updates the internal address register `addr` with the translated address.
+
+- **Read and Write Control**: The module uses two clock domains to manage read and write operations. In the `ckmb` domain, it sets flags to indicate an ongoing read or write operation based on the strobes. These flags are then used in the `ckdr` domain to manage the readiness state (`rdy1`, `rdy2`) and to capture read data from the memory subsystem into `rdat`.
+
+- **Readiness and Data Capture**: In the `ckdr` domain, the module captures data from the memory subsystem (`srdat`) based on the current address offset and updates the readiness state to signal the completion of read or write operations to the IO interface.
+
+### 6. Internally Defined Signal Descriptions
+
+- **`rdat`**: A 32-bit register used to buffer data read from the memory subsystem before it is sent to the IO interface.
+
+- **`wdat`**: A 256-bit register that buffers write data received from the IO interface, preparing it for a memory write operation.
+
+- **`msk`**: A 32-bit register that holds the data mask for write operations, indicating which bytes of the data word should be written to memory.
+
+- **`addr`**: A 32-bit register (excluding the least significant 2 bits) that holds the translated memory address for the current operation.
+
+- **`rdy1`, `rdy2`**: Registers used to manage the readiness state across clock domains. `rdy1` is used in the `ckdr` domain to indicate when data is ready to be captured or has been captured, while `rdy2` is used in the `ckmb` domain to signal the IO interface that the module is ready for the next operation.
+
+- **`read`, `write`**: Flags indicating whether a read or write operation is currently being requested by the IO interface.
+
+- **`iowd`**: A wire that directly carries the `IO_Write_Data` to be used in write operations.
+
+- **`mask`**: A wire that carries the inverted `IO_Byte_Enable` signal, used to generate the write data mask.
+
+This module effectively bridges the IO and memory subsystems, handling data and address translation, and managing the synchronization between different clock domains to ensure data integrity and operational correctness.

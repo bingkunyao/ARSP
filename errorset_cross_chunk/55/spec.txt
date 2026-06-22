@@ -1,0 +1,100 @@
+Module overview:
+ ### 1. Module Name
+
+The name of the RTL module is `spi_master`.
+
+### 2. Module Functions
+
+The `spi_master` module is designed to function as a master device in a Serial Peripheral Interface (SPI) communication protocol setup. Its primary objectives include:
+
+- Initiating and managing SPI transactions with one or more slave devices.
+- Sending and receiving data in serial format, with configurable options such as bit order (LSB or MSB first) and SPI mode (clock polarity and phase).
+- Handling write and read operations to and from an internal buffer, facilitating asynchronous data transmission and reception.
+- Providing status signals to indicate buffer empty conditions and character reception, enhancing interaction with external controllers or processors.
+
+This module plays a crucial role in systems requiring serial communication with peripherals like sensors, memory devices, or other microcontrollers, enabling efficient data exchange while minimizing pin usage.
+
+### 3. Input and Output Port Descriptions
+
+#### Inputs:
+
+- `clk`: Clock input for synchronizing the module's operations.
+- `rst`: Reset signal to initialize the module's internal state.
+- `data`: Bidirectional data port for transmitting and receiving data bytes.
+- `wr`: Write enable signal to trigger data writing to the internal buffer.
+- `rd`: Read enable signal to trigger data reading from the internal buffer.
+- `prescaller`: 3-bit input to set the clock prescaler value, adjusting the SPI clock frequency.
+- `lsbfirst`: Bit order selection signal (1 for LSB first, 0 for MSB first).
+- `mode`: 2-bit input to select the SPI mode (clock polarity and phase).
+- `res_senderr`: Signal to reset the send error flag.
+- `miso`: Master In Slave Out signal, representing the data line from the slave to the master.
+
+#### Outputs:
+
+- `buffempty`: Buffer empty flag, indicating whether the internal buffer is empty.
+- `sck`: Serial Clock output to synchronize data transmission with the slave device.
+- `mosi`: Master Out Slave In signal, representing the data line from the master to the slave.
+- `ss`: Slave Select signal, used to select the slave device for communication.
+- `senderr`: Send error flag, indicating an error condition during data transmission.
+- `charreceived`: Character received flag, indicating the reception of a data byte.
+
+### 4. Internal Working Principle
+
+The `spi_master` module operates based on the SPI protocol, a synchronous serial communication interface. Here are the key principles guiding its operation:
+
+- **State Machine**: The module employs a finite state machine (FSM) with states for idle and busy conditions. The FSM transitions from idle to busy when there's data to send, managing the SPI transaction process until completion before returning to idle.
+- **Clock Management**: The SPI clock (`sck`) frequency is derived from the input clock (`clk`) using a prescaler, whose value is set by the `prescaller` input. This allows for adjustable communication speeds.
+- **Data Buffering**: Data to be transmitted is first written to an internal buffer. The module then serially shifts this data out through the `mosi` line, while simultaneously reading incoming data on the `miso` line into a reception buffer.
+- **SPI Modes**: The module supports all four SPI modes through the `mode` input, allowing configuration of clock polarity and phase to match the slave device's requirements.
+- **Bit Order**: The bit order for data transmission and reception can be set through the `lsbfirst` input, enabling flexibility in communication with various peripherals.
+- **Error Handling**: The module includes mechanisms to detect and signal error conditions, such as attempting to write to a full buffer or read from an empty one, through the `senderr` and `buffempty` flags.
+
+### 5. Implementation Logic Explanation
+
+The RTL module presented is designed to function as an SPI (Serial Peripheral Interface) master. SPI is a synchronous serial communication interface specification used for short-distance communication, primarily in embedded systems. The module is parameterized, allowing for customization of word length and prescaler size, which are critical for adjusting the data transmission rate and compatibility with various SPI devices.
+
+#### Combinational and Sequential Logic:
+
+- **Combinational Logic:** This logic does not have memory and its output is a function of the current inputs only. In this module, combinational logic is used for generating signals such as `buffempty`, which indicates whether the input buffer is empty, and `sck`, the serial clock that is derived from a counter and potentially inverted based on the SPI mode. The prescaler demultiplexing (`prescdemux`) based on `prescallerint` is another example, determining the clock division for SPI clock generation.
+
+- **Sequential Logic:** This logic retains state information (memory). It includes flip-flops and registers that hold the state of the module, such as `state`, which tracks whether the SPI master is idle or busy. Sequential logic is used to manage data transmission, including loading data into shift registers (`shift_reg_out` for outgoing data, `shift_reg_in` for incoming data), generating the SPI clock (`sckint`), and handling the SPI modes and bit order (`lsbfirstint`, `modeint`). The module also uses sequential logic to manage buffer fullness indicators (`inbufffullp`, `inbufffulln`) and error signaling (`senderr`).
+
+#### Data Transmission Process:
+
+1. **Initialization:** Upon reset, internal registers are initialized, including the input and output buffers, state indicators, and counters.
+
+2. **Data Loading:** When a write operation is signaled (`wr`), and the input buffer is empty (`buffempty`), data is loaded into the `input_buffer`. If the buffer is not empty, an error (`senderr`) is signaled.
+
+3. **Transmission Start:** Once data is loaded, the module transitions from the idle state to the busy state, initializes the SPI clock generation logic (`prescaller_cnt`, `sckint`), and begins transmitting data bit by bit. The bit order (LSB or MSB first) and SPI mode (CPOL, CPHA) are taken into account.
+
+4. **Data Shifting:** Data bits are shifted out through `mosi` and shifted in from `miso`, using shift registers. The SPI clock (`sck`) is generated based on the prescaler settings and SPI mode.
+
+5. **Transmission Completion:** After all bits are transmitted, the module captures the received data in `output_buffer`, signals character reception (`charreceived`), and returns to the idle state, ready for the next operation.
+
+### 6. Internally Defined Signal Descriptions
+
+- **`input_buffer`, `output_buffer`**: Temporary storage for data to be transmitted and storage for received data, respectively.
+
+- **`inbufffullp`, `inbufffulln`**: Indicators used to track the fullness of the input buffer. Their difference (`buffempty`) indicates whether the buffer is empty or full.
+
+- **`prescallerbuff`**: Stores the prescaler value for the current transmission, determining the SPI clock rate.
+
+- **`state`**: Indicates whether the SPI master is idle (`state_idle`) or busy (`state_busy`) with a transmission.
+
+- **`prescaller_cnt`**: Counter used in conjunction with `prescdemux` to generate the SPI clock (`sck`) based on the prescaler setting.
+
+- **`shift_reg_out`, `shift_reg_in`**: Shift registers for outgoing and incoming data, facilitating serial transmission and reception.
+
+- **`sckint`**: Internal representation of the SPI clock, which may be inverted based on SPI mode before being output as `sck`.
+
+- **`prescallerint`**: Internal copy of the prescaler setting, used in clock generation logic.
+
+- **`prescdemux`**: Result of demultiplexing `prescallerint`, determining the actual division factor for the SPI clock.
+
+- **`lsbfirstint`, `modeint`**: Internal representations of the bit order (LSB or MSB first) and SPI mode (CPOL, CPHA), affecting data transmission and clock behavior.
+
+- **`_mosi`**: Internal signal representing the Master Out Slave In line, which may be driven high when the SPI master is not actively transmitting (`ss` is high).
+
+- **`charreceivedp`, `charreceivedn`**: Indicators used to signal the reception of a character by toggling their state and reflecting this change in `charreceived`.
+
+This module encapsulates the complexity of SPI communication, providing a flexible interface for transmitting and receiving data in a variety of configurations. Its design leverages both combinational and sequential logic to manage data flow, error handling, and synchronization with SPI slave devices.

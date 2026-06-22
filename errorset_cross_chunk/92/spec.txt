@@ -1,0 +1,79 @@
+Module overview:
+ ### 1. Module Name
+
+The name of the RTL module is `hpdmc_mgmt`.
+
+### 2. Module Functions
+
+The `hpdmc_mgmt` module is designed to manage interactions with an SDRAM (Synchronous Dynamic Random-Access Memory) system. It handles the timing and control signals required for initiating and managing read and write operations to the SDRAM. The module's primary functions include:
+
+- Generating the necessary control signals for SDRAM operations, such as activate, read, write, and precharge commands.
+- Managing page hits and misses by tracking open rows in each bank of the SDRAM.
+- Ensuring operations adhere to the SDRAM timing constraints, such as row precharge time, row-to-column delay, refresh intervals, and auto-refresh cycles.
+- Handling the SDRAM's power-up sequence and initialization process.
+
+This module plays a critical role in the broader system by interfacing between the system's core logic and the SDRAM, ensuring data can be stored and retrieved from memory efficiently and reliably.
+
+### 3. Input and Output Port Descriptions
+
+#### Inputs:
+
+- `sys_clk`: System clock input for synchronizing the module's operations.
+- `sdram_rst`: Reset signal for initializing the module's state and internal counters.
+- `tim_rp`, `tim_rcd`, `tim_refi`, `tim_rfc`: Timing parameters for SDRAM operations (row precharge time, row-to-column delay, refresh interval, and auto-refresh time, respectively).
+- `stb`: Strobe signal indicating a request for a read or write operation.
+- `we`: Write enable signal distinguishing between read (0) and write (1) operations.
+- `address`: The memory address for the read/write operation, excluding the least significant bits used for byte addressing and the most significant bits used for bank addressing.
+- `read_safe`, `write_safe`: Signals indicating when it is safe to perform read and write operations, respectively.
+- `precharge_safe`: Signal indicating when it is safe to precharge a bank or all banks.
+
+#### Outputs:
+
+- `ack`: Acknowledgment signal indicating that a read or write operation has been initiated.
+- `read`, `write`: Signals indicating that a read or write operation is currently being executed.
+- `concerned_bank`: Indicates the bank involved in the current operation.
+- `sdram_cs_n`, `sdram_we_n`, `sdram_cas_n`, `sdram_ras_n`: Control signals for the SDRAM (chip select, write enable, column address strobe, row address strobe, respectively).
+- `sdram_adr`: Address bus for the SDRAM, multiplexed between row and column addresses.
+- `sdram_ba`: Bank address for the SDRAM.
+
+### 4. Internal Working Principle
+
+The `hpdmc_mgmt` module operates based on a finite state machine (FSM) that transitions through various states to manage SDRAM operations according to the SDRAM's timing requirements and the system's requests.
+
+- **Initialization**: Upon reset, the module initializes its internal state and counters.
+- **Address Parsing**: The input address is parsed into column, bank, and row addresses. The bank address is also converted into a one-hot encoded format for easier handling of bank-specific operations.
+- **Bank Management**: The module tracks which rows are open in each bank to manage page hits and misses. If a requested row is already open (page hit), the operation can proceed directly; otherwise, the module must close the current row and open the requested row (page miss).
+- **Timing Management**: The module uses internal counters to ensure operations adhere to the SDRAM's timing constraints, such as waiting for the appropriate intervals before issuing certain commands.
+- **Command Generation**: Based on the current state and the operation requested, the module generates the appropriate SDRAM control signals (CS, WE, CAS, RAS) and addresses.
+- **Refresh Management**: The module also manages the periodic refresh operations required by the SDRAM, including auto-refresh cycles.
+
+### 5. Implementation Logic Explanation
+
+The RTL module presented is designed to manage SDRAM (Synchronous Dynamic Random-Access Memory) operations, including read, write, precharge, activate, and refresh cycles. It interfaces with an SDRAM device through a set of control signals and addresses, and it operates under the control of an external system clock (`sys_clk`) and reset signal (`sdram_rst`). The module's primary function is to manage the timing and sequence of SDRAM commands based on the input requests and the state of the SDRAM.
+
+#### Combinational Logic:
+
+- **Address Decoding**: The module decodes the input address into column, bank, and row addresses using bit slicing. This is crucial for directing operations to the correct location within the SDRAM.
+- **Bank Address One-Hot Encoding**: Converts the 2-bit bank address into a one-hot encoded signal, facilitating easier bank-specific operations.
+- **Current Precharge Safety Check**: Determines if it's safe to precharge a given bank by checking if all banks are precharge safe except the one currently being accessed.
+- **Page Hit Detection**: Checks if the requested row is already open in the target bank, which would allow for a direct read or write operation without needing to precharge and activate a different row.
+
+#### Sequential Logic:
+
+- **State Machine**: The core of the module is a finite state machine (FSM) that transitions between states based on the current operation, the state of the SDRAM (e.g., whether a bank is open or needs to be refreshed), and safety checks. The states include idle, activate, read, write, precharge all, auto-refresh, and auto-refresh wait.
+- **Timers and Counters**: Implements several counters to manage SDRAM timing requirements, such as precharge, activate, and refresh intervals. These ensure operations are executed in compliance with the SDRAM's timing specifications.
+- **Open Row Tracking**: Keeps track of which rows are open in each bank to optimize access times and minimize unnecessary precharges.
+
+### 6. Internally Defined Signal Descriptions
+
+- **address32, col_address, bank_address, row_address**: These signals represent the decoded address input, split into column, bank, and row components. They are derived from the input `address` signal by bit slicing.
+- **bank_address_onehot**: A one-hot encoded version of the bank address, used for easier identification of the target bank for operations.
+- **has_openrow**: A 4-bit signal indicating which banks currently have an open row.
+- **openrows[0:3]**: An array of registers storing the row addresses of the open rows in each bank.
+- **track_close, track_open**: Signals used to track which banks are being instructed to close or open a row in the current cycle.
+- **sdram_adr_loadrow, sdram_adr_loadcol, sdram_adr_loadA10**: Control signals that determine what part of the address (row, column, or A10 for precharge all command) is loaded into the `sdram_adr` output.
+- **sdram_cs, sdram_we, sdram_cas, sdram_ras**: Internal control signals for the SDRAM command inputs. These are inverted to produce the actual SDRAM control signals (`sdram_cs_n`, `sdram_we_n`, `sdram_cas_n`, `sdram_ras_n`).
+- **precharge_counter, activate_counter, refresh_counter, autorefresh_counter**: Counters used to manage the timing of precharge, activate, refresh, and auto-refresh operations, ensuring compliance with the SDRAM's timing requirements.
+- **state, next_state**: Registers used by the FSM to manage the current and next state of the module.
+
+This module's design is a sophisticated example of managing SDRAM operations through a combination of combinational and sequential logic, ensuring efficient and safe access to the memory device.

@@ -1,0 +1,83 @@
+Module overview:
+### 1. Module Overview
+The provided code consists of three modules: `f_permutation`, `rconst2in1`, and `round2in1`. the top module is `f_permutation`. These modules work together to implement a permutation operation.
+
+#### `f_permutation` Module
+This is the main module that orchestrates the permutation process. It takes an input (`in`), along with a ready signal (`in_ready`), and produces an output (`out`) along with an `out_ready` signal indicating when the output is valid. It manages the selection of round constants and the iterative application of the permutation rounds.
+
+#### `rconst2in1` Module
+This module generates the round constants (`rc1` and `rc2`) based on an input index (`i`). These round constants are crucial for introducing non-linearity and uniqueness in each round of the permutation process.
+
+#### `round2in1` Module
+It performs a single round of the complex permutation operation. It involves multiple sub-operations such as theta, rho, pi, chi, and iota transformations on the input data, using the round constants provided by the `rconst2in1` module.
+
+### 2. `f_permutation` Module Details
+
+#### Input and Output Ports
+- **Input Ports**:
+    - `clk`: The clock signal that synchronizes all the operations within the module. All internal register updates and state changes occur on the rising edge of this clock.
+    - `reset`: An asynchronous reset signal. When asserted, it resets the internal state of the module, initializing registers and signals to their default values.
+    - `in [575:0]`: The input data on which the permutation operation is to be performed.
+    - `in_ready`: A signal indicating that new input data is available and ready to be processed.
+- **Output Ports**:
+    - `ack`: A signal sent back to the source of the input data to acknowledge the receipt of the data.
+    - `out [1599:0]`: The permuted output data after performing multiple rounds of permutation operations.
+    - `out_ready`: A signal that indicates when the `out` output is ready to be consumed by external modules.
+
+#### Internal Signals and Registers
+- `i [10:0]`: A register used to select the round constant. It is updated based on the `accept` signal and the reset condition.
+- `calc`: A single-bit register that indicates whether the permutation calculation is in progress. Its value is updated based on its previous state and the `accept` signal.
+- `round_in`: A wire signal that represents the combined input for a particular round of permutation, combining the current input data and the previous round's output in a specific way.
+- `round_out`: A wire signal that represents the output of a single round of permutation, which is calculated by the `round2in1` module.
+
+#### Working Principle
+The module starts by initializing `i` and `calc` to `0` when the `reset` signal is asserted. The `accept` signal is determined by the availability of new input data (`in_ready`) and the state of the calculation (`calc`). The `i` register is updated on each clock cycle when `accept` is true, effectively incrementing through different round constant selections as the permutation progresses.
+
+The `calc` register is updated to indicate when the calculation is ongoing or when a new round should start. The `ack` signal is simply set to the `accept` signal to acknowledge the receipt of input data. The `out_ready` signal is managed such that it is initially `0`, remains `0` when new input is accepted, and is set to `1` only when the last round of permutation is completed (indicated by `i[10]` being `1`).
+
+The `round_in` signal is calculated based on whether new input is being accepted or not. If new input is accepted, it combines the current input (`in`) with the previous output (`out`) in a specific bitwise XOR operation. Otherwise, it just passes the previous output.
+
+The `rconst2in1` module is called with the current `i` and `accept` values to generate the round constants `rc1` and `rc2`. These round constants, along with the `round_in` signal, are passed to the `round2in1` module to perform a single round of permutation. The result of the round (`round_out`) is then used to update the `out` register when the `update` condition (which depends on `calc` and `accept`) is true.
+
+### 3. `rconst2in1` Module Details
+
+#### Input and Output Ports
+- **Input Port**:
+    - `i [11:0]`: An index or parameter that determines the specific round constants to be generated.
+- **Output Ports**:
+    - `rc1 [63:0]` and `rc2 [63:0]`: The two round constants generated based on the input `i`.
+
+#### Working Principle
+The module uses two `always` blocks, one for each round constant (`rc1` and `rc2`). In these `always` blocks, which are sensitive to changes in the `i` input, each bit of the round constants is set based on specific bitwise logical operations involving different bits of the `i` input. For example, `rc1[0]` is set to the logical OR of specific bits of `i` (i.e., `i[0] | i[2] | i[3] | i[5] | i[6] | i[7] | i[10] | i[11]`). This way, different values of `i` result in unique round constant values for each round of the permutation process in the `f_permutation` module.
+
+### 4. `round2in1` Module Details
+
+#### Input and Output Ports
+- **Input Ports**:
+    - `in [1599:0]`: The input data for a single round of permutation.
+    - `round_const_1 [63:0]` and `round_const_2 [63:0]`: The round constants used in this round of permutation, typically generated by the `rconst2in1` module.
+- **Output Port**:
+    - `out [1599:0]`: The output data after performing the specific round of permutation operations.
+
+#### Internal Signals and Arrays
+- **Arrays for Intermediate Values**:
+    - `a[4:0][4:0] [63:0]`: Used to represent the input data in a specific array format for easier manipulation during the permutation process. Each element `a[x][y]` corresponds to a specific portion of the input data based on the mapping defined by the `high_pos` and `low_pos` macros.
+    - `b[4:0] [63:0]`: Calculated as the XOR of all elements in a particular row of `a` (i.e., `b[x] = a[x][0] ^ a[x][1] ^ a[x][2] ^ a[x][3] ^ a[x][4]`). It is used in subsequent operations like the theta transformation.
+    - Similar arrays `c[4:0][4:0]`, `d[4:0][4:0]`, `e[4:0][4:0]`, `f[4:0][4:0]`, `g[4:0][4:0]`, `bb[4:0]`, `cc[4:0][4:0]`, `dd[4:0][4:0]`, `ee[4:0][4:0]`, `ff[4:0][4:0]`, and `gg[4:0][4:0]` are used to store intermediate results during different stages of the two-round permutation process.
+
+#### Working Principle
+The module first maps the input data `in` to the `a[x][y]` array using generate blocks with nested `for` loops and the `high_pos` and `low_pos` macros. Then, it calculates `b[x]` as the XOR of the elements in each row of `a`.
+
+Next, it performs a series of operations for the first round of permutation:
+- **Theta Operation (`c[x][y]`)**: Involves combining `a[x][y]` with elements from `b` after specific rotations. For example, `c[x][y] = a[x][y] ^ b[sub_1(x)] ^ rot_up_1(b[add_1(x)])`.
+- **Rho Operation (`d[x][y]`)**: Performs specific rotations on the elements of `c` to obtain `d`. For instance, `d[0][0] = c[0][0]`, `d[1][0] = rot_up_1(c[1][0])`, etc.
+- **Pi Operation (`e[x][y]`)**: Rearranges the elements of `d` according to a specific permutation pattern.
+- **Chi Operation (`f[x][y]`)**: Applies a non-linear transformation using the elements of `e` and their neighbors, like `f[x][y] = e[x][y] ^ ((~ e[add_1(x)][y]) & e[add_2(x)][y])`.
+- **Iota Operation (`g[x][y]`)**: Adds the round constant `round_const_1` to the first element `g[0][0]` for specific bit positions (when `x==0` and certain values of `y`).
+
+After the first round, similar operations are repeated for the second round using the arrays `bb`, `cc`, `dd`, `ee`, `ff`, and `gg`, with the second round constant `round_const_2` used in the iota operation for the second round. Finally, the output `out` is assigned the values from the `gg[x][y]` array, mapping them back to the appropriate positions in the output data using the `high_pos` and `low_pos` macros.
+
+### 5. Overall Functionality and Significance
+The combination of these three modules implements a multi-round permutation operation that is likely a key component of a cryptographic hash function. The iterative nature of the permutation, along with the use of carefully designed round constants and a series of complex transformations (theta, rho, pi, chi, iota), helps in achieving properties like diffusion, confusion, and resistance to attacks in the hash function. Each round mixes the input data in a way that changes its internal state significantly, and over multiple rounds, this results in a final output that depends on every bit of the input in a complex and non-linear manner, which is crucial for the security and uniqueness of the hash result.
+
+The `f_permutation` module manages the overall process, the `rconst2in1` module provides the necessary constants for each round to add variability and security, and the `round2in1` module performs the detailed and intricate permutation operations for each individual round. 

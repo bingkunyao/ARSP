@@ -1,0 +1,57 @@
+Module overview:
+ ### 1. Module Name
+The name of the RTL module is `alt_exc_dpram`.
+
+### 2. Module Functions
+The `alt_exc_dpram` module is designed to simulate a dual-port RAM (Random Access Memory) with configurable operation modes, including single and dual-port functionalities. It is intended for use in digital systems requiring separate read/write access paths for different clock domains or operational contexts. The module supports parameterized address width, data width, and memory depth, allowing for flexible integration into various designs. Additionally, it offers an optional registered output mode for timing optimization.
+
+### 3. Input and Output Port Descriptions
+
+#### Inputs:
+- **portawe, portbwe (1-bit each):** Write enable signals for Port A and Port B, respectively. A high signal enables writing to the memory location specified by the corresponding address input.
+- **portaena, portbena (1-bit each):** Enable signals for Port A and Port B, respectively. A high signal enables the corresponding port's operation.
+- **portaclk, portbclk (1-bit each):** Clock inputs for Port A and Port B, respectively. These signals synchronize read/write operations for their respective ports.
+- **portadatain, portbdatain ([width-1:0] each):** Data inputs for Port A and Port B, respectively. These are the data values to be written to the memory location specified by the corresponding address input when the write enable signal is high.
+- **portaaddr, portbaddr ([addrwidth-1:0] each):** Address inputs for Port A and Port B, respectively. These specify the memory location for read/write operations.
+
+#### Outputs:
+- **portadataout, portbdataout ([width-1:0] each):** Data outputs for Port A and Port B, respectively. These outputs present the data read from the memory location specified by the corresponding address input.
+
+### 4. Internal Working Principle
+
+The `alt_exc_dpram` module operates based on the input control signals (write enable, enable, and clock) for each port. The memory is represented internally by the `dpram_content` array, which is indexed by the address inputs. The behavior of the module is governed by the edge-triggered always blocks that respond to rising edges of the clock inputs for each port.
+
+- **Write Operation:** When the write enable (`portawe` or `portbwe`) for a port is high, and the corresponding port is enabled, the data from the data input (`portadatain` or `portbdatain`) is written to the memory location specified by the address input (`portaaddr` or `portbaddr`). If both ports attempt to write to the same location simultaneously, the behavior is undefined, and the module forces the content of that memory location to 'X' (unknown).
+
+- **Read Operation:** When the write enable for a port is low, indicating a read operation, and the port is enabled, the data from the specified memory location is placed on the corresponding data output (`portadataout` or `portbdataout`). If there is a conflict where both ports attempt to read from and write to the same location simultaneously, the output for the reading port is forced to 'X'.
+
+- **Output Mode:** The module supports an optional registered output mode, controlled by the `output_mode` parameter. In the registered output mode (`"REG"`), the data output is registered, potentially improving timing at the expense of an additional clock cycle of latency. In the unregistered mode (`"UNREG"`), the data output directly reflects the current state of the memory, providing lower latency at the potential cost of timing performance.
+
+### 5. Implementation Logic Explanation
+
+The RTL module described is an `alt_exc_dpram`, which stands for an alternative example of a dual-port RAM (Random Access Memory). This module is designed to support either single or dual-port operations based on the `operation_mode` parameter. It allows for simultaneous read/write operations on different ports under certain conditions, dictated by the input signals and operational parameters. The module's functionality is highly parameterizable, including aspects like address width, data width, memory depth, and output mode.
+
+#### Combinational Logic:
+
+- **Data Pathways**: The module defines combinational paths for data inputs (`portadatain`, `portbdatain`) to the outputs (`portadataout`, `portbdataout`). These paths are influenced by the operational mode, output mode, and the state of control signals (write enable, clock, and enable signals for each port).
+- **Address and Control Signal Processing**: The address inputs (`portaaddr`, `portbaddr`) and control signals (write enable, clock, and enable for each port) are directly used in the logic to determine the behavior of memory read/write operations and output data selection.
+
+#### Sequential Logic:
+
+- **Clock Edge Detection**: The module detects rising edges of the clock inputs (`portaclk`, `portbclk`) to trigger memory operations. This is achieved by comparing the current clock state to the last clock state for each port.
+- **Memory Write Operations**: On a rising clock edge, if the write enable signal for a port is active, the data input for that port is written to the memory location specified by the address input.
+- **Memory Read Operations**: If the write enable signal is not active on a rising clock edge, the module prepares to output the data stored at the memory location specified by the address input. The actual output might be delayed or altered based on the output mode and simultaneous access conditions.
+- **Output Mode Handling**: The module supports both registered and unregistered output modes. In the registered mode, the output data is latched on the enable signal, introducing a one-cycle delay.
+
+### 6. Internally Defined Signal Descriptions
+
+- **`dpram_content`**: The main memory storage array, sized based on the `depth` and `width` parameters. It represents the RAM's contents.
+- **Clock and Enable Signals (`portaclk_in`, `portbclk_in`, `portaena_in`, `portbena_in`)**: These signals represent the current state of the external clock and enable inputs for each port. They are used to trigger memory operations.
+- **Data Input Signals (`portadatain_in`, `portbdatain_in`)**: Represent the current state of the data inputs for each port.
+- **Address Input Signals (`portaaddr_in`, `portbaddr_in`)**: Represent the current state of the address inputs for each port.
+- **Latch Signals (`portawe_latched`, `portbwe_latched`, `portaaddr_latched`, `portbaddr_latched`)**: These signals hold the state of the write enable and address inputs at the time of the last rising clock edge. They are used to determine the behavior of the current operation based on the state of the system at the last clock edge.
+- **Temporary Output Signals (`portadataout_tmp`, `portbdataout_tmp`)**: Intermediate signals used to hold the data to be outputted before it is potentially modified by the output mode logic.
+- **Registered Output Signals (`portadataout_reg`, `portbdataout_reg`, `portadataout_reg_out`, `portbdataout_reg_out`)**: In the registered output mode, these signals hold the data to be outputted, potentially introducing a one-cycle delay based on the enable signals.
+- **Output Selection Signals (`portadataout_tmp2`, `portbdataout_tmp2`)**: These signals determine the final output based on the output mode. They select between the immediate data (`portadataout_tmp`, `portbdataout_tmp`) and the registered data (`portadataout_reg_out`, `portbdataout_reg_out`).
+
+This module's design allows for flexible RAM operations with support for parameterized configurations and dual-port functionality, making it suitable for a wide range of applications requiring RAM with customizable behavior and output modes.

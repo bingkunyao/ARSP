@@ -1,0 +1,94 @@
+Module overview:
+ ### 1. Module Name
+
+The name of the RTL module is `cavlc_read_levels`.
+
+### 2. Module Functions
+
+The `cavlc_read_levels` module is designed to decode level values from the Coded Block Pattern (CBP) in the context of H.264/AVC video compression. In H.264/AVC, Context-Adaptive Variable Length Coding (CAVLC) is a technique used for entropy coding. This module specifically handles the reading and decoding of level values associated with non-zero transform coefficients in a macroblock's residual data.
+
+The primary functions and objectives of the module include:
+- Decoding the level values from the raw bitstream (`rbsp`) provided as input.
+- Managing the decoding process based on the number of trailing ones (`TrailingOnes`), total coefficients (`TotalCoeff`), and the current coefficient index (`i`).
+- Outputting the decoded level values for up to 16 coefficients, which can be used for further processing in the video decoding pipeline.
+
+This module plays a crucial role in the entropy decoding stage of H.264/AVC video decompression, enabling the reconstruction of macroblock coefficients necessary for the accurate rendering of video frames.
+
+### 3. Input and Output Port Descriptions
+
+#### Inputs:
+- `clk`: Clock signal (input, 1 bit) - Synchronizes the module's operations.
+- `rst_n`: Reset signal, active low (input, 1 bit) - Resets the module's internal state when low.
+- `ena`: Enable signal (input, 1 bit) - Activates the module's processing when high.
+- `t1s_sel`, `prefix_sel`, `suffix_sel`, `calc_sel`: Control signals (input, 1 bit each) - Select the specific decoding operation to be performed.
+- `TrailingOnes`: Number of trailing ones in the coefficients (input, 2 bits) - Used in level decoding.
+- `TotalCoeff`: Total number of coefficients (input, 5 bits) - Indicates the total coefficients to be processed.
+- `rbsp`: Raw bitstream payload (input, 16 bits) - Contains the encoded data to be decoded.
+- `i`: Current coefficient index (input, 4 bits) - Indicates the current coefficient being processed.
+
+#### Outputs:
+- `level_0` to `level_15`: Decoded level values (output, 9 bits each) - The decoded level values for up to 16 coefficients.
+- `len_comb`: Combined length of the decoded data (output, 5 bits) - Indicates the length of the decoded data for the current operation.
+
+### 4. Internal Working Principle
+
+The `cavlc_read_levels` module operates based on the principles of CAVLC decoding, specifically tailored to decode level values from a bitstream. The decoding process is influenced by several factors, including the number of trailing ones, the total number of coefficients, and the position of the current coefficient being processed.
+
+The module's internal workings can be summarized as follows:
+- **Initialization**: Upon reset, all internal registers and output level values are initialized to zero.
+- **Control Signal Processing**: Based on the active control signal (`t1s_sel`, `prefix_sel`, `suffix_sel`, `calc_sel`), the module selects the appropriate decoding operation. These operations include handling trailing ones, decoding level prefixes, decoding level suffixes, and calculating the final level values.
+- **Level Prefix and Suffix Decoding**: The module decodes the level prefix from the `rbsp` input, determining the suffix length based on the total coefficients, trailing ones, and whether it's the first level being decoded. The level suffix is then decoded accordingly.
+- **Level Calculation**: The final level value for each coefficient is calculated by combining the decoded prefix and suffix, adjusting for the first level and trailing ones as necessary.
+- **Output Assignment**: The calculated level values are assigned to the respective output ports based on the current coefficient index (`i`). The combined length of the decoded data (`len_comb`) is also determined based on the decoding operation performed.
+
+### 5. Implementation Logic Explanation
+
+The Verilog module `cavlc_read_levels` is designed to process syntax elements in the context of H.264/AVC video compression, specifically for the CAVLC (Context-Adaptive Variable Length Coding) decoding process. The module reads and interprets the levels of coefficients in a macroblock's residual data, which are encoded using a combination of prefix, suffix, and trailing ones syntax elements. The module operates under a synchronous design, with operations triggered on the rising edge of a clock signal and capable of being reset through an active-low reset signal.
+
+#### Combinational Logic:
+
+- **Level Prefix Calculation (`level_prefix_comb`):** This block determines the level prefix by scanning the `rbsp_internal` signal for the first '1' bit from LSB to MSB. This operation is purely combinational and is used to decode the prefix part of the level coding.
+
+- **Level Suffix Calculation (`level_suffix`):** Depending on the value of `level_prefix` and `suffixLength`, this block calculates the level suffix. It extracts bits from `rbsp_internal` and shifts or masks them accordingly to form the suffix value.
+
+- **Level Calculation (`level`):** This block computes the final level value based on the `level_code_tmp`, which is a combination of prefix and suffix, and adjusts it based on whether it's the first level and the number of trailing ones. This calculation also considers sign inversion for odd level codes.
+
+- **Length Combination (`len_comb`):** This block calculates the combined length of the syntax elements processed, which varies depending on whether trailing ones, prefix, or suffix processing is being performed.
+
+#### Sequential Logic:
+
+- **Internal RBSP Storage (`rbsp_internal`):** This register holds the current segment of the RBSP (raw byte sequence payload) being processed. It is updated based on the enable signals for different processing stages.
+
+- **Level Prefix Storage (`level_prefix`):** Stores the level prefix after it's calculated, for use in subsequent clock cycles.
+
+- **Suffix Length Calculation (`suffixLength`):** Sequentially calculates the length of the suffix to be used based on conditions involving the total number of coefficients, trailing ones, and the absolute value of the previously calculated level.
+
+- **Temporary Level Code Storage (`level_code_tmp`):** Holds the combination of level prefix and suffix before the final level calculation.
+
+- **Absolute Level Calculation (`level_abs`):** Computes the absolute value of the calculated level for use in determining the suffix length in the next cycle.
+
+- **Level Outputs (`level_0` to `level_15`):** These registers store the final calculated levels for up to 16 coefficients in a macroblock. They are updated based on the trailing ones processing or the calculated level from the prefix and suffix.
+
+### 6. Internally Defined Signal Descriptions
+
+- **`rbsp_internal`**: A register that temporarily holds the current segment of RBSP data being processed. It is essential for extracting syntax elements like the level prefix and suffix.
+
+- **`level_prefix_comb`**: A combinational signal that represents the level prefix derived from the first '1' bit in `rbsp_internal`.
+
+- **`level_suffix`**: Holds the calculated suffix value, which is derived from bits in `rbsp_internal` based on the suffix length and the level prefix.
+
+- **`len_comb`**: Represents the combined length of the syntax elements processed in the current operation. It is crucial for tracking the bit consumption in the RBSP stream.
+
+- **`level_prefix`**: A register that stores the level prefix value for use in subsequent calculations. It is updated based on the prefix selection signal.
+
+- **`suffixLength`**: Determines the number of bits to be used for the level suffix. It is dynamically adjusted based on the decoding context.
+
+- **`level`**: The calculated level value, which may be positive or negative based on the level code's parity. It is the output of the level decoding process.
+
+- **`level_abs`**: Stores the absolute value of `level`, used in determining the suffix length for the next coefficient.
+
+- **`level_code_tmp`**: A temporary storage for the combined level code (prefix + suffix) before the final level calculation.
+
+- **`level_0` to `level_15`**: Registers that store the final level values for up to 16 coefficients. These are the primary outputs of the module, representing the decoded levels of the residual coefficients in a macroblock.
+
+This module intricately combines combinational and sequential logic to decode the levels of coefficients in CAVLC-encoded video data, showcasing a complex yet efficient design tailored for video compression applications.

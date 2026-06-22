@@ -1,0 +1,83 @@
+Module overview:
+ ### 1. Module Name
+
+The name of the RTL module is `eth_transmitcontrol`.
+
+### 2. Module Functions
+
+The `eth_transmitcontrol` module is designed to manage the control flow for Ethernet frame transmission. Its primary functions include:
+
+- Determining when to initiate the transmission of control frames based on various input signals and conditions.
+- Generating control frames, specifically Pause frames, which are used in Ethernet networks to control the flow of data and prevent congestion.
+- Managing the timing and sequence of control frame transmission, including the start and end of a frame, under different operational scenarios such as normal operation, abort requests, or when a pause request (`TPauseRq`) is received.
+- Selecting between control data and user data for transmission, using a multiplexer control signal (`CtrlMux`).
+- Blocking the indication of transmission completion (`TxDoneIn`) under certain conditions to ensure proper handling of control frames.
+
+This module plays a crucial role in Ethernet MAC (Media Access Control) layer operations, particularly in implementing flow control mechanisms to enhance network performance and reliability.
+
+### 3. Input and Output Port Descriptions
+
+#### Inputs:
+
+- `MTxClk`: Clock input for the module. All operations are synchronized to this clock.
+- `TxReset`: Asynchronous reset signal. When high, it initializes the module's internal state.
+- `TxUsedDataIn`: Indicates if the user data is being used for transmission.
+- `TxUsedDataOut`: Indicates if the transmitted data is user data.
+- `TxDoneIn`: Signal indicating the completion of a transmission.
+- `TxAbortIn`: Signal to abort the current transmission.
+- `TxStartFrmIn`: Signal indicating the start of a frame transmission.
+- `TPauseRq`: Pause request signal, used to initiate the transmission of a Pause control frame.
+- `TxUsedDataOutDetected`: Indicates that transmitted data (user data) has been detected.
+- `TxFlow`: Enables flow control.
+- `DlyCrcEn`: Enables delay in CRC (Cyclic Redundancy Check) processing.
+- `TxPauseTV`: The Pause Time Value for the Pause frame.
+- `MAC`: The MAC address to be used in the control frame.
+
+#### Outputs:
+
+- `TxCtrlStartFrm`: Signal indicating the start of control frame transmission.
+- `TxCtrlEndFrm`: Signal indicating the end of control frame transmission.
+- `SendingCtrlFrm`: Indicates that a control frame is currently being sent.
+- `CtrlMux`: Control signal for multiplexing between control data and user data.
+- `ControlData`: The control data to be transmitted.
+- `WillSendControlFrame`: Indicates that the module will send a control frame.
+- `BlockTxDone`: Blocks the `TxDoneIn` signal under certain conditions.
+
+### 4. Internal Working Principle
+
+The `eth_transmitcontrol` module operates based on a state-driven logic that responds to input signals and internal counters to manage the transmission of Ethernet control frames. Here's a breakdown of its internal working principle:
+
+- **Initialization and Reset**: Upon reset (`TxReset`), the module initializes all internal registers and states, preparing for operation.
+- **Control Frame Decision Logic**: The module decides whether to send a control frame based on the pause request (`TPauseRq`), flow control enable (`TxFlow`), and other transmission-related signals. This decision influences the `WillSendControlFrame` signal.
+- **Transmission Control**: The module generates signals to control the start (`TxCtrlStartFrm`) and end (`TxCtrlEndFrm`) of control frame transmission. These signals are managed based on the internal state, including whether a control frame is being sent (`SendingCtrlFrm`) and the status of data transmission (`TxUsedDataIn`, `TxUsedDataOut`).
+- **Data Multiplexing**: The `CtrlMux` signal is used to select between control data and user data for transmission. This selection is based on whether a control frame is to be sent and the status of the ongoing transmission.
+- **Control Data Generation**: The module generates the control data (`ControlData`) to be transmitted in a control frame. This data includes predefined fields (e.g., frame type, MAC address) and the Pause Time Value (`TxPauseTV`).
+- **Byte Counting and Control End Detection**: Internal counters (`ByteCnt`, `DlyCrcCnt`) are used to manage the transmission process, including detecting the end of the control frame (`ControlEnd`). The counters are incremented based on the transmission status and the delay CRC enable signal (`DlyCrcEn`).
+
+### 5. Implementation Logic Explanation
+
+The `eth_transmitcontrol` module is designed to manage the control frame transmission for an Ethernet MAC (Media Access Control) layer. It operates based on various input signals that dictate when and how control frames are sent. The module's primary function is to generate control frames, particularly pause frames, under specific conditions dictated by the input signals. The logic within this module can be categorized into combinational and sequential parts, orchestrating the control frame generation and transmission process.
+
+**Sequential Logic:**
+
+- **State Management:** The module uses several registers (`WillSendControlFrame`, `TxCtrlStartFrm`, `TxCtrlEndFrm`, `SendingCtrlFrm`, `CtrlMux`, `BlockTxDone`, `DlyCrcCnt`, `ByteCnt`, `ControlEnd_q`, `TxCtrlStartFrm_q`, `TxUsedDataIn_q`, `ControlData`) to maintain its state across clock cycles. These registers are updated based on the current state of the module and its inputs, enabling the module to progress through the steps required to generate and send a control frame.
+- **Edge Detection and Counting:** The module detects edges (e.g., the transition of `TxCtrlStartFrm`) and counts cycles or events (e.g., `ByteCnt` and `DlyCrcCnt`) to manage the timing and sequence of operations, such as when to start sending a frame and when to insert specific bytes into the frame.
+
+**Combinational Logic:**
+
+- **Control Frame Generation:** The module generates the contents of the control frame based on the current byte count (`ByteCnt`). This is done through a combinational logic block that selects the appropriate byte to output (`MuxedCtrlData`) based on the current stage of frame generation.
+- **Signal Conditioning:** Several signals are derived from the primary state-holding registers to control the flow of operations. For example, `IncrementByteCnt` and `ControlEnd` signals are generated based on the current state to manage the progression through the control frame bytes.
+
+### 6. Internally Defined Signal Descriptions
+
+- **`WillSendControlFrame`**: Indicates whether the module is in a state to send a control frame. It is set when a pause request (`TPauseRq`) is received and the flow control (`TxFlow`) is enabled, and cleared once the control frame transmission is initiated or completed.
+- **`TxCtrlStartFrm`, `TxCtrlEndFrm`**: Signals indicating the start and end of a control frame transmission. These are used to manage the framing of the control data being sent.
+- **`SendingCtrlFrm`**: Indicates that the module is currently in the process of sending a control frame. It is used to maintain the transmission state until the frame is fully sent.
+- **`CtrlMux`**: A control signal that determines whether control data or user data is selected for transmission. It is used to switch the data path to the control frame data during transmission.
+- **`BlockTxDone`**: Used to block the `TxDone` signal in certain conditions, preventing the premature indication that transmission is complete when it is not.
+- **`DlyCrcCnt`, `ByteCnt`**: Counters used for managing delays and tracking the progress through the control frame bytes, respectively.
+- **`ControlEnd_q`, `TxCtrlStartFrm_q`, `TxUsedDataIn_q`**: These are 'delayed' or 'previous cycle' versions of their respective signals, used for edge detection and ensuring certain operations only happen once per event.
+- **`MuxedCtrlData`**: Holds the current byte of control data to be sent. It is determined based on the current byte count and the specific contents of the control frame being generated.
+- **`ControlData`**: The output data byte, selected from `MuxedCtrlData` based on timing and sequencing logic, to be transmitted as part of the control frame.
+
+This module intricately combines these internal signals with its input signals to manage the generation and transmission of Ethernet control frames, specifically handling pause frames as dictated by the input conditions and the Ethernet standard requirements.

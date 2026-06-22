@@ -1,0 +1,96 @@
+Module overview:
+ ### 1. Module Name
+
+The name of the RTL module is `eth_receivecontrol`.
+
+### 2. Module Functions
+
+The `eth_receivecontrol` module is designed to manage the reception control logic within an Ethernet MAC (Media Access Control) layer. Its primary functions include:
+
+- **Address Filtering**: Determines if incoming frames are addressed to the MAC or are multicast/broadcast frames that should be processed.
+- **Pause Frame Detection and Control**: Identifies pause control frames in the incoming data stream and manages the pause functionality, including setting the pause timer and generating pause control signals for flow control.
+- **Frame Validation**: Checks the type/length field of the received frames to ensure they conform to expected values, aiding in the identification of pause frames.
+- **Slot Time Management**: Manages the slot time counter used for timing pause intervals and flow control mechanisms.
+
+This module plays a crucial role in ensuring that the Ethernet MAC layer correctly processes incoming frames, adheres to flow control protocols, and filters out irrelevant frames, thereby facilitating efficient network communication.
+
+### 3. Input and Output Port Descriptions
+
+#### Inputs:
+
+- **MTxClk, MRxClk**: Clock inputs for the transmit and receive paths, respectively.
+- **TxReset, RxReset**: Asynchronous reset signals for the transmit and receive logic.
+- **RxData [7:0]**: The 8-bit data bus for incoming frames.
+- **RxValid**: Indicates the validity of the data on `RxData`.
+- **RxStartFrm, RxEndFrm**: Signals indicating the start and end of a frame.
+- **RxFlow**: Enables flow control.
+- **ReceiveEnd**: Indicates the end of frame reception.
+- **MAC [47:0]**: The 48-bit MAC address of the device.
+- **DlyCrcEn**: Enables delayed CRC (Cyclic Redundancy Check) processing.
+- **TxDoneIn, TxAbortIn**: Indicate the completion or abortion of a transmission.
+- **TxStartFrmOut**: Indicates the start of frame transmission.
+- **ReceivedLengthOK, ReceivedPacketGood**: Indicate the status of the received frame length and overall integrity.
+- **TxUsedDataOutDetected**: Detects the usage of transmitted data.
+- **RxStatusWriteLatched_sync2**: Synchronized signal for status write latch.
+- **r_PassAll**: Enables the passing of all received frames, regardless of address match.
+
+#### Outputs:
+
+- **Pause**: Controls the pause functionality based on received pause frames and internal logic.
+- **ReceivedPauseFrm**: Indicates the reception of a pause frame.
+- **AddressOK**: Indicates a match between the received frame's address and the device's MAC address or a reserved multicast address.
+- **SetPauseTimer**: Triggers the setting of the pause timer based on received pause frame information.
+
+### 4. Internal Working Principle
+
+The `eth_receivecontrol` module operates based on a series of stateful checks and operations that occur as data frames are received. Its behavior can be summarized as follows:
+
+- **Address Filtering**: The module compares incoming frame addresses against the device's MAC address and a reserved multicast address. If a match is found, the `AddressOK` signal is asserted, indicating the frame is intended for this device or is a relevant multicast/broadcast frame.
+
+- **Pause Frame Detection**: By examining specific bytes (the type/length field and the opcode) within the frame, the module determines if an incoming frame is a pause control frame. If such a frame is detected and the address check passes, the module sets internal flags to manage the pause functionality.
+
+- **Pause Timer Management**: Upon detection of a pause frame, the module extracts the pause time value from the frame and sets an internal timer (`PauseTimer`) accordingly. This timer governs the duration for which the device should pause its transmission, aiding in flow control.
+
+- **Slot Time Management**: The module manages a slot timer that is used to measure time intervals for pause functionality. This timer is incremented under specific conditions and is used to determine when the device can resume normal operations after a pause.
+
+### 5. Implementation Logic Explanation
+
+The `eth_receivecontrol` module is designed to manage the reception of Ethernet frames, specifically focusing on the detection and handling of pause frames as per the Ethernet flow control mechanism (IEEE 802.3x). The module operates with two clock domains: `MTxClk` for the transmit path and `MRxClk` for the receive path, and it interfaces with various signals to perform its duties.
+
+#### Logical Constructs:
+
+- **Sequential Logic:** The module heavily relies on sequential logic, with numerous `always @ (posedge MRxClk or posedge RxReset)` blocks. These blocks are responsible for updating internal state machines, counters, and registers based on the receive clock (`MRxClk`) and reset signal (`RxReset`). This design choice allows the module to process incoming data in a synchronous manner, ensuring stable and predictable behavior.
+
+- **Combinational Logic:** Combinational logic is used for signal assignments and conditions that do not depend on the clock. For example, the `assign` statements for signals like `ResetByteCnt`, `IncrementByteCnt`, and various byte count equality checks (`ByteCntEqX`) are determined by the current state of other signals without waiting for a clock edge.
+
+- **Flow Control Detection and Handling:** The module identifies pause frames by examining the destination MAC address, type/length field, and opcode within the frame. It uses byte counters (`ByteCnt`) to track the position within the frame and compares specific bytes to predefined values (e.g., reserved multicast address, type/length for pause frames, and opcode). Once a valid pause frame is detected, it latches the pause time value from the frame and can signal to pause transmission based on this value.
+
+- **Pause Timer Management:** A pause timer (`PauseTimer`) is decremented based on slot time expiration, controlled by `SlotTimer` and `Divider2`. This mechanism ensures that the module adheres to the specified pause duration before resuming normal operation.
+
+#### Decision Windows and Byte Counting:
+
+- **Detection Window:** A detection window (`DetectionWindow`) is defined to limit the frame analysis to the initial bytes where relevant information (e.g., MAC address, type/length, opcode) is expected. This window is controlled by the byte counter and reset upon receiving the end of a frame or specific byte positions.
+
+- **Byte Counting:** The module counts the bytes as they are received (`ByteCnt`) to identify the positions of interest within the frame. This counting is crucial for extracting the MAC address, type/length, opcode, and pause time value from the correct positions in the frame.
+
+### 6. Internally Defined Signal Descriptions
+
+- **ReservedMulticast, TypeLength:** These wires hold constant values representing the reserved multicast address and type/length field for pause frames, used for frame identification.
+
+- **ByteCnt, DlyCrcCnt:** Counters for tracking the number of bytes received and the delay CRC count, respectively. `ByteCnt` is particularly important for identifying specific fields within the frame.
+
+- **AssembledTimerValue, LatchedTimerValue:** Registers for assembling and latching the pause time value extracted from pause frames.
+
+- **DetectionWindow:** A flag indicating whether the current byte position is within the detection window for analyzing the frame.
+
+- **TypeLengthOK, OpCodeOK, AddressOK:** Flags indicating whether the type/length field, opcode, and address match the expected values for a pause frame.
+
+- **ReceivedPauseFrm, ReceivedPauseFrmWAddr:** Flags indicating the detection of a pause frame, with `ReceivedPauseFrmWAddr` specifically indicating a pause frame with a matching address.
+
+- **PauseTimer, Divider2, SlotTimer:** Used for managing the pause duration. `PauseTimer` holds the pause time value, `Divider2` toggles to control the slot time, and `SlotTimer` counts the slot times to decrement the pause timer.
+
+- **PauseTimerEq0, PauseTimerEq0_sync1, PauseTimerEq0_sync2:** Signals related to the pause timer reaching zero, with synchronization across clock domains.
+
+- **Pause:** Output signal indicating whether the transmission should be paused based on the flow control logic.
+
+This module exemplifies a complex state machine and logic design to implement Ethernet flow control, specifically focusing on pause frame detection and handling. The internal signals and logic constructs work together to ensure that the module can correctly identify pause frames, extract the pause duration, and control the transmission accordingly.
