@@ -1,0 +1,161 @@
+### 1. Module Name
+The module has four main modules: `cop_top`, `cop_wb_bus`, `cop_regs`, and `cop_count`. These modules work together to implement a Computer Operating Properly (COP) functionality, which is likely related to system monitoring and reset control in an electronic system.
+
+### 2. Module Functions
+- **`cop_top` Module**:
+This is the top-level module that integrates the other sub-modules to provide the overall COP functionality. It interfaces with external systems through Wishbone signals and COP I/O signals. It manages the flow of data and control signals between the different components and orchestrates the operation of the COP system, including handling resets, enabling/disabling the COP functionality, and managing interrupts and other status signals.
+
+- **`cop_wb_bus` Module**:
+Handles the Wishbone bus interface for the COP system. It decodes the Wishbone signals such as address, write enable, and strobe signals to perform read and write operations to internal registers. It also manages the generation of acknowledgment signals and wait states if needed. Additionally, it provides a way to map the internal register data to the appropriate positions on the Wishbone data bus for reading operations and to decode write operations to specific registers.
+
+- **`cop_regs` Module**:
+Responsible for managing the various control and status registers related to the COP functionality. It updates these registers based on write operations from the Wishbone bus and controls the enabling/disabling of different features like interrupts, system stop mode handling, debug mode handling, and the COP timeout counter. It also manages the reload of the COP timeout counter based on specific service words received.
+
+- **`cop_count` Module**:
+Implements the core functionality related to the COP timeout counter. It keeps track of the counter value, handles reset conditions, and generates the COP reset, interrupt request, and status signals based on the counter's state and various external and internal control signals. It also manages the synchronization of the counter value between different clock domains (e.g., between the COP clock and the control register bus clock).
+
+### 3. Input and Output Port Descriptions
+- **`cop_top` Module**:
+    - **Input Ports**:
+        - `wb_clk_i`: The master clock input for the Wishbone bus interface. All Wishbone-related operations and internal register updates synchronized with this clock.
+        - `wb_rst_i`: A synchronous active high reset signal for the Wishbone bus interface and related components.
+        - `arst_i`: An asynchronous reset signal that can reset the entire COP system independently of the `wb_rst_i` signal.
+        - `wb_adr_i [2:0]`: The lower address bits used to select specific registers or locations within the COP system for Wishbone bus transactions.
+        - `wb_dat_i [DWIDTH-1:0]`: The input data bus for writing data to the COP system during Wishbone write operations.
+        - `wb_we_i`: A write enable input signal for the Wishbone bus, indicating whether a write operation is in progress.
+        - `wb_stb_i`: A strobe/core select signal for the Wishbone bus, used to indicate a valid bus cycle for a specific operation.
+        - `wb_cyc_i`: A signal indicating a valid bus cycle on the Wishbone bus.
+        - `wb_sel_i [1:0]`: Used to select a specific byte within a word for bus transactions, depending on the data bus width.
+        - `por_reset_i`: System Power On Reset signal, active low, which can reset the COP system during power-up.
+        - `startup_osc_i`: System Startup Oscillator signal, likely used to provide a clock source for the COP functionality during startup.
+        - `stop_mode_i`: System STOP Mode signal, indicating whether the system is in a stopped state.
+        - `wait_mode_i`: System WAIT Mode signal, indicating whether the system is in a wait state.
+        - `debug_mode_i`: System DEBUG Mode signal, indicating whether the system is in debug mode.
+        - `scantestmode`: A signal indicating whether the chip is in scan test mode.
+    - **Output Ports**:
+        - `wb_dat_o [DWIDTH-1:0]`: The output data bus for reading data from the COP system during Wishbone read operations.
+        - `wb_ack_o`: A bus cycle acknowledge output signal for the Wishbone bus, indicating that a bus cycle has been completed and processed.
+        - `cop_rst_o`: COP reset output signal, active low, which can be used to reset other parts of the system based on the COP's state.
+        - `cop_irq_o`: COP interrupt request signal output, used to notify other components of the system about a COP-related interrupt condition.
+
+- **`cop_wb_bus` Module**:
+    - **Input Ports**:
+        - `wb_clk_i`: The master clock input for the Wishbone bus interface.
+        - `wb_rst_i`: A synchronous active high reset signal for the Wishbone bus interface.
+        - `arst_i`: An asynchronous reset signal.
+        - `wb_adr_i [2:0]`: The lower address bits for Wishbone bus transactions.
+        - `wb_dat_i [DWIDTH-1:0]`: The input data bus for writing data.
+        - `wb_we_i`: A write enable input signal.
+        - `wb_stb_i`: A strobe/core select signal.
+        - `wb_cyc_i`: A signal indicating a valid bus cycle.
+        - `wb_sel_i [1:0]`: Byte selection within a word for bus transactions.
+        - `irq_source`: An input signal indicating the source of an interrupt within the COP system.
+        - `read_regs [47:0]`: The status register bits that contain information to be read out on the Wishbone bus.
+    - **Output Ports**:
+        - `wb_dat_o [DWIDTH-1:0]`: The output data bus for reading data.
+        - `wb_ack_o`: A bus cycle acknowledge output signal.
+        - `write_regs [4:0]`: Decoded write control register signals, indicating which specific registers are being written to.
+        - `async_rst_b`: An asynchronous reset signal that is inverted or adjusted based on the `ARST_LVL` parameter.
+        - `sync_reset`: A synchronous reset signal that is directly connected to the `wb_rst_i` input.
+
+- **`cop_regs` Module**:
+    - **Input Ports**:
+        - `bus_clk`: The control register bus clock, which synchronizes register updates within this module.
+        - `async_rst_b`: An asynchronous reset signal.
+        - `sync_reset`: A synchronous reset signal.
+        - `cop_flag`: A COP Rollover Flag indicating a specific condition related to the COP counter.
+        - `write_bus [DWIDTH-1:0]`: The write data bus that contains the data to be written to the registers.
+        - `write_regs [4:0]`: The write register strobes that indicate which registers are being targeted for a write operation.
+    - **Output Ports**:
+        - `timeout_value [COUNT_SIZE-1:0]`: The COP timeout value that determines the counter's period.
+        - `cop_irq_en [1:0]`: The COP IRQ Enable/Value that controls the generation of interrupt requests.
+        - `debug_ena`: A signal that enables the COP in system debug mode.
+        - `stop_ena`: A signal that enables the COP in system stop mode.
+        - `wait_ena`: A signal that enables the COP in system wait mode.
+        - `cop_ena`: A signal that enables the COP Timeout Counter.
+        - `cwp`: COP write protect signal.
+        - `clck`: COP lock signal.
+        - `reload_count`: A signal indicating that the COP System service is complete and the timeout counter can be reloaded.
+        - `clear_event`: A signal used to reset the COP event register.
+
+- **`cop_count` Module**:
+    - **Input Ports**:
+        - `async_rst_b`: An asynchronous reset signal.
+        - `sync_reset`: A synchronous reset signal.
+        - `por_reset_i`: System Power On Reset signal, active low.
+        - `startup_osc_i`: System Startup Oscillator signal.
+        - `bus_clk`: The control register bus clock.
+        - `reload_count`: A signal indicating the correct control words have been written for reloading the counter.
+        - `clear_event`: A signal for resetting the COP event register.
+        - `debug_mode_i`: System DEBUG Mode signal.
+        - `debug_ena`: A signal enabling the COP in system debug mode.
+        - `wait_ena`: A signal enabling the COP in system wait mode.
+        - `wait_mode_i`: System WAIT Mode signal.
+        - `stop_ena`: A signal enabling the COP in system stop mode.
+        - `stop_mode_i`: System STOP Mode signal.
+        - `cop_ena`: A signal enabling the COP Timeout Counter.
+        - `cop_irq_en [1:0]`: The COP IRQ Enable/Value.
+        - `timeout_value [COUNT_SIZE-1:0]`: The initial value for the COP counter.
+        - `scantestmode`: A signal indicating the chip is in scan test mode.
+    - **Output Ports**:
+        - `cop_counter [COUNT_SIZE-1:0]`: The modulo counter value that keeps track of the COP timeout countdown.
+        - `cop_capture [COUNT_SIZE-1:0]`: The counter value synchronized to the bus_clk domain for external access.
+        - `cop_rst_o`: COP reset output signal, active low.
+        - `cop_irq_o`: COP interrupt request signal.
+        - `cop_event`: COP status bit indicating a particular condition related to the COP operation.
+
+### 4. Internal Working Principle
+- **`cop_top` Module**:
+Instantiates the `cop_wb_bus`, `cop_regs`, and `cop_count` sub-modules and connects them together. It passes relevant signals between these sub-modules to coordinate their operations and achieve the overall COP functionality. For example, it routes the Wishbone signals to the `cop_wb_bus` module and the clock and reset signals to the other sub-modules as needed.
+
+- **`cop_wb_bus` Module**:
+Based on the Wishbone signals, it determines if a read or write operation is taking place. For read operations, it uses a multiplexer (`rd_data_mux`) to select the appropriate bits from the `read_regs` based on the address (`wb_adr_i`) and data bus width (`DWIDTH`). The selected data is then latched (`rd_data_reg`) and outputted on the `wb_dat_o` bus when the read access is valid. For write operations, it decodes the address and write enable signals to generate the `write_regs` signals that indicate which specific registers in the other modules should be updated.
+
+- **`cop_regs` Module**:
+It has a set of registers that store the various control and status values related to the COP system. Based on the `write_regs` signals received from the `cop_wb_bus` module and the data on the `write_bus`, it updates these registers using an `always_ff` block. The update logic for each register is defined based on the specific functionality and bit positions within the register. For example, different bits in the written data can control the enabling of interrupts, the timeout value, and other features.
+
+- **`cop_count` Module**:
+The `cop_counter` register is updated based on the `cop_clk` signal. When not stopped (`stop_counter` is `0`), it decrements the counter value. When a reload condition (`reload_2`) is met, it sets the counter to the `timeout_value`. The `cop_rst_o` signal is set based on the counter reaching `0`. The `cop_capture` value is synchronized from the `cop_clk` domain to the `bus_clk` domain using flip-flops and a synchronizing mechanism. Interrupt requests (`cop_irq`) are generated based on the comparison of the `cop_counter` value with thresholds defined by the `cop_irq_en` signal.
+
+### 5. Implementation Logic Explanation
+- **`cop_top` Module**:
+The module's implementation mainly involves instantiating the sub-modules and connecting their ports appropriately. It acts as a top-level container that organizes the flow of signals between different parts of the COP system.
+
+- **`cop_wb_bus` Module**:
+The `always_ff` block for `bus_wait_state` manages the addition of wait states to the Wishbone bus transactions. It is reset when the asynchronous or synchronous reset signals are active and is set when a valid bus cycle (`module_sel`) occurs and it was previously `0`. The `always_ff` block for `rd_data_reg` latches the data from `rd_data_mux` when a read access (`wb_racc`) is valid. The `always_comb` blocks for generating `write_regs` and the Wishbone signals (`wb_ack_o`, `wb_dat_o`, etc.) use case statements to decode the address and other control signals to perform the appropriate operations.
+
+- **`cop_regs` Module**:
+The large `always_ff` block that updates the registers has multiple `case` statements based on the `write_regs` value. Each `case` branch updates specific registers based on the written data and the current state of other relevant signals. For example, in the `5'b00011` (Word Write) case, it updates multiple registers like `clear_event`, `cop_irq_en`, `debug_ena`, etc., based on the bits in the `write_data`.
+
+- **`cop_count` Module**:
+The `always_ff` block for `cop_counter` updates the counter value based on the reset conditions (`async_rst_b` and `reload_2`) and the decrement operation when not stopped. The clock domain crossing for `cop_capture` is achieved using multiple flip-flops (`cop_clk_resync1` and `cop_clk_resync2`) to synchronize the signal from the `cop_clk` domain to the `bus_clk` domain. The generation of the interrupt request (`cop_irq`) involves decoding the `cop_irq_en` signal in an `always_comb` block and then synchronizing the result using flip-flops in the `always_ff` block for the `bus_clk` domain.
+
+### 6. Internally Defined Signal Descriptions
+- **`cop_top` Module**:
+    - `cop_event`: A status bit within the COP system that represents a particular condition related to the COP's operation, likely related to events like timeouts or specific counter states.
+    - `cop_flag`: A flag that indicates a COP Rollover condition, which might be used to trigger certain actions or updates within the system.
+    - `cop_irq_en [1:0]`: Signals that control the enabling and configuration of the COP interrupt request, determining when an interrupt should be generated based on the COP counter's state.
+    - `cop_counter [COUNT_SIZE-1:0]`: The main counter value within the COP system that is used to track timeouts or other time-based operations.
+    - `cop_capture [COUNT_SIZE-1:0]`: A synchronized version of the `cop_counter` value that is made available in the `bus_clk` domain for external access and monitoring.
+    - `async_rst_b`: An inverted or adjusted version of the asynchronous reset signal (`arst_i`) based on the `ARST_LVL` parameter, used to reset various internal components.
+    - `sync_reset`: A synchronous reset signal directly related to the `wb_rst_i` input, used to synchronously reset parts of the system.
+    - `write_regs [4:0]`: Signals generated by the `cop_wb_bus` module to indicate which specific control registers within the `cop_regs` module are being written to.
+    - `prescale_out`: A signal related to prescaling operations (though its exact use isn't fully clear from the code context).
+    - `stop_ena`: A signal that controls the clearing of the COP Rollover Status Bit when the system is in a stopped state.
+    - `debug_ena`: A signal that enables the COP to operate in a slave mode and use an external synchronization input when the system is in debug mode.
+    - `wait_ena`: A signal that enables the COP to continue operating when the system is in a wait state.
+    - `cop_ena`: A signal that enables the COP Timout Counter to start counting down.
+    - `cwp`: A signal related to COP write protection, likely used to prevent unauthorized writes to certain registers.
+    - `clck`: A signal related to COP locking, though its exact functionality isn't immediately obvious from the code.
+    - `reload_count`: A signal indicating that the COP System service has been completed and that the counter can be reloaded.
+    - `clear_event`: A signal used to reset the COP Event register.
+    - `timeout_value [COUNT_SIZE-1:0]`: The value that determines the period or modulo of the COP counter, setting how long it takes for the counter to reach a certain state (like timeout).
+    - `counter_sync`: A signal related to synchronizing the counter (though its exact role isn't fully detailed in the code).
+
+- **`cop_wb_bus` Module**:
+    - `bus_wait_state`: A register that controls the addition of wait states to the Wishbone bus transactions, ensuring proper synchronization and data transfer.
+    - `rd_data_mux`: A combinational signal that acts as a multiplexer, selecting the appropriate bits from the `read_regs` based on the address and data bus width for Wishbone read operations.
+    - `rd_data_reg`: A register that latches the data from `rd_data_mux` to provide a stable output on the `wb_dat_o` bus during read operations.
+    - `eight_bit_bus`: A signal that indicates whether the data bus width is `8` bits, used for decoding and configuring the Wishbone operations accordingly.
+    - `module_sel`: A signal that indicates when the current module is selected for a Wishbone bus transaction, based on the combination of `wb_cyc_i` and `wb_stb_i` signals.
+    - `wb_wacc`: wb_wacc: A signal that represents a write access condition for the Wishbone bus. It is generated based on the combination of several other signals. Specifically, it is set when the module is selected for a bus transaction (indicated by module_sel being true), the write enable signal wb_we_i is asserted, and either the bus cycle acknowledge signal wb_ack_o is already set or the SINGLE_CYCLE parameter indicates that no additional wait states are needed. Essentially, it serves as a clock gating or enabling signal for write operations on the Wishbone bus, determining when data can be written to the appropriate registers or locations within the module based on the ongoing bus cycle and the write enable status.

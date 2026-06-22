@@ -1,0 +1,88 @@
+ ### 1. Module Name
+The name of the RTL module is `altfp_mult`.
+
+### 2. Module Functions
+The `altfp_mult` module is designed to perform floating-point multiplication on two input data streams, adhering to the IEEE 754 standard for floating-point arithmetic. This module is capable of handling various floating-point special cases such as zero, infinity, NaN (Not a Number), underflow, and overflow conditions. It supports parameterized exponent and mantissa widths, allowing for single, double, or custom precision floating-point multiplication. The module also includes optional pipeline stages to meet different timing requirements, making it suitable for high-performance computing, digital signal processing, and other applications requiring floating-point arithmetic.
+
+### 3. Input and Output Port Descriptions
+
+- **Inputs:**
+  - `clock` (input): The clock signal for the module. It is used to synchronize the operations within the module, especially for the pipelining mechanism.
+  - `clk_en` (input, tri-state): Clock enable signal. When high, it allows the module to process data and update its state. It supports tri-state logic for enhanced control.
+  - `aclr` (input, tri-state): Asynchronous clear signal. When high, it resets the internal state of the module, including pipeline registers. It supports tri-state logic.
+  - `dataa` (input, [WIDTH_MAN_EXP : 0]): The first floating-point operand for multiplication. It includes both the exponent and mantissa parts.
+  - `datab` (input, [WIDTH_MAN_EXP : 0]): The second floating-point operand for multiplication.
+
+- **Outputs:**
+  - `result` (output, [WIDTH_MAN_EXP : 0]): The result of the floating-point multiplication.
+  - `overflow` (output): Indicates an overflow condition occurred during the operation.
+  - `underflow` (output): Indicates an underflow condition occurred during the operation.
+  - `zero` (output): Indicates the result of the multiplication is zero.
+  - `denormal` (output): Indicates the result is a denormal number.
+  - `indefinite` (output): Indicates the result is indefinite, typically occurring in specific operations involving NaNs.
+  - `nan` (output): Indicates the result is Not a Number (NaN).
+
+### 4. Internal Working Principle
+The `altfp_mult` module operates based on the IEEE 754 standard for floating-point arithmetic. It decomposes the input operands into their sign, exponent, and mantissa components. The multiplication operation is performed separately on the mantissas and exponents of the inputs. Special cases such as zero, infinity, NaN, underflow, and overflow are handled according to the standard's rules.
+
+- **Mantissa Multiplication:** The mantissas of the input operands are extended and multiplied together. The result may require normalization (shifting and adjusting the exponent) to fit into the mantissa field of the result format.
+
+- **Exponent Calculation:** The exponents of the inputs are added together, and the bias is subtracted to get the result exponent. The bias is defined by the floating-point format and is necessary to represent both positive and negative exponents.
+
+- **Special Cases Handling:** The module includes logic to detect and correctly handle special cases such as inputs or results being zero, infinity, NaN, underflows, and overflows.
+
+- **Pipelining:** To meet timing requirements and improve throughput, the module implements optional pipelining. The depth of the pipeline is configurable through the `pipeline` parameter. Each stage of the pipeline registers intermediate results, allowing for multiple operations to be in progress simultaneously.
+
+- **Parameterization:** The module is highly configurable, with parameters for exponent width (`width_exp`), mantissa width (`width_man`), and pipeline depth (`pipeline`). This flexibility allows the module to be tailored to specific precision requirements and performance targets.
+
+### 5. Implementation Logic Explanation
+
+The RTL module `altfp_mult` is designed to perform floating-point multiplication, adhering to the IEEE 754 standard for binary floating-point arithmetic. The module is parameterizable, allowing adjustments to exponent and mantissa widths, and it incorporates pipeline stages to meet timing requirements. The design is structured to handle special cases such as zero, infinity, NaN (Not a Number), denormals, and overflow/underflow conditions. The core logic is divided into combinational and sequential parts, ensuring that the module can efficiently process floating-point numbers across clock cycles.
+
+#### Combinational Logic:
+
+- **Special Case Handling:** Before proceeding with the multiplication, the module checks for special cases involving the inputs `dataa` and `datab`. These include scenarios where either input is zero, infinity, NaN, or a denormalized number. The outcome of these checks determines if a regular multiplication is necessary or if the result can be directly inferred from the special cases.
+
+- **Exponent Calculation:** The exponents of the inputs are extracted and summed up. An offset (bias) is subtracted from the sum to adjust the result's exponent to the correct range. This operation is crucial for aligning the result's exponent with the IEEE 754 standard.
+
+- **Mantissa Multiplication:** The mantissas of the inputs are extended with an implicit leading '1' (for normalized numbers) and then multiplied. This multiplication is a key part of the floating-point operation, and the module implements it with careful consideration of the bit widths to ensure accuracy.
+
+- **Normalization and Rounding:** After multiplication, the result may need to be normalized (i.e., adjusted so that the most significant bit of the mantissa is '1'). Rounding is also performed to fit the result within the designated mantissa width, following IEEE 754 rounding rules.
+
+- **Special Result Handling:** The module also determines if the result should be flagged as overflow, underflow, zero, denormal, indefinite, or NaN, based on the outcome of the multiplication and the special case checks.
+
+#### Sequential Logic:
+
+- **Pipeline Stages:** The module employs pipeline registers to store intermediate results and special condition flags across clock cycles. This pipelining mechanism allows the module to process new inputs while previous operations are still being finalized, improving throughput.
+
+- **Clock-Enabled Processing:** Operations within the module are clock-enabled, meaning they proceed only when the `clk_en` signal is asserted. This feature allows for better control over the module's operation, making it possible to synchronize it with other parts of a larger system.
+
+- **Asynchronous Clear:** The module supports an asynchronous clear (`aclr`) functionality, which resets the pipeline registers and internal state, ensuring that the module can be quickly brought to a known state when required.
+
+### 6. Internally Defined Signal Descriptions
+
+- **mant_dataa, mant_datab:** Registers to hold the mantissas of the input operands, extended with an implicit leading '1' for normalized numbers.
+
+- **mant_result:** A register to hold the result of the mantissa multiplication, which is wider than the input mantissas to accommodate overflow during multiplication.
+
+- **exp_dataa, exp_datab, exp_result:** Integers used to calculate and store the exponents of the input operands and the result.
+
+- **zero_mant_dataa, zero_mant_datab:** Flags indicating if the mantissas of the input operands are zero.
+
+- **zero_dataa, zero_datab:** Flags indicating if the input operands are zero.
+
+- **inf_dataa, inf_datab:** Flags indicating if the input operands are infinity.
+
+- **nan_dataa, nan_datab:** Flags indicating if the input operands are NaN.
+
+- **den_dataa, den_datab:** Flags indicating if the input operands are denormalized numbers.
+
+- **no_multiply:** A flag indicating if multiplication should be skipped due to special case handling.
+
+- **mant_result_msb, sticky_bit, round_bit, guard_bit, carry:** Bits used in the normalization and rounding process.
+
+- **result_pipe, overflow_pipe, underflow_pipe, zero_pipe, denormal_pipe, indefinite_pipe, nan_pipe:** Pipeline registers for storing intermediate results and flags across clock cycles.
+
+- **overflow_bit, underflow_bit, zero_bit, denormal_bit, indefinite_bit, nan_bit:** Flags indicating special conditions of the result, used to set the corresponding output signals after the pipeline stages.
+
+This module's design reflects a comprehensive approach to floating-point multiplication, with careful handling of special cases and adherence to IEEE 754 standards, facilitated by a well-structured combination of combinational and sequential logic.
